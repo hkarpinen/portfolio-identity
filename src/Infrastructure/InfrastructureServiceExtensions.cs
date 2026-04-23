@@ -1,0 +1,64 @@
+using Application.Services;
+using Domain.Aggregates.User;
+using Domain.Repositories;
+using Domain.Services;
+using Infrastructure.Messaging;
+using Infrastructure.Persistence;
+using Infrastructure.Repositories;
+using Infrastructure.Services;
+using MassTransit;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Infrastructure;
+
+public static class InfrastructureServiceExtensions
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddDbContext<IdentityDbContext>(options =>
+            options.UseNpgsql(
+                    configuration.GetConnectionString("Identity"),
+                    npgsql => npgsql.MigrationsAssembly("Infrastructure"))
+                .UseSnakeCaseNamingConvention());
+
+        services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
+            {
+                options.SignIn.RequireConfirmedEmail = true;
+                options.Password.RequiredLength = 12;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+            })
+            .AddEntityFrameworkStores<IdentityDbContext>()
+            .AddDefaultTokenProviders();
+
+        var rabbitConfig = configuration.GetSection("RabbitMq");
+        services.AddMassTransit(x =>
+        {
+            x.UsingRabbitMq((context, cfg) =>
+            {
+                cfg.Host(rabbitConfig["Host"], h =>
+                {
+                    h.Username(rabbitConfig["Username"]!);
+                    h.Password(rabbitConfig["Password"]!);
+                });
+            });
+        });
+
+        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+        services.Configure<LocalFileStorageOptions>(configuration.GetSection("Storage"));
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IEmailGateway, SmtpEmailGateway>();
+        services.AddScoped<IPasswordAuthenticationEngine, PasswordAuthenticationEngine>();
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        services.AddHostedService<OutboxPublisher>();
+
+        return services;
+    }
+}
