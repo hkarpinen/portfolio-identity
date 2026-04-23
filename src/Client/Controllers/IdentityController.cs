@@ -46,7 +46,7 @@ public sealed class IdentityController : ControllerBase
             return Ok(new { requiresTwoFactor = true });
 
         SetAccessTokenCookie(loginResult.Token!, loginResult.ExpiresAt!.Value);
-        return Ok(new { requiresTwoFactor = false, token = loginResult.Token });
+        return Ok(new { requiresTwoFactor = false });
     }
 
     [HttpPost("confirm-email")]
@@ -80,7 +80,7 @@ public sealed class IdentityController : ControllerBase
             return BadRequest(new { error = result.Error });
 
         SetAccessTokenCookie(result.Value!.Token!, result.Value.ExpiresAt!.Value);
-        return Ok(new { token = result.Value.Token });
+        return Ok();
     }
 
     [HttpGet("me")]
