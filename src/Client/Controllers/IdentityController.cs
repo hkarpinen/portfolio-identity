@@ -137,8 +137,8 @@ public sealed class IdentityController : ControllerBase
         Response.Cookies.Append("access_token", token, new CookieOptions
         {
             HttpOnly = true,
-            Secure = false,
-            SameSite = SameSiteMode.Lax,
+            Secure = true,
+            SameSite = SameSiteMode.Strict,
             Expires = expiresAt
         });
     }
