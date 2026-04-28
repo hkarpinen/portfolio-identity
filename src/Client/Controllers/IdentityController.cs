@@ -1,8 +1,9 @@
-using Application;
 using Application.Contracts;
-using Application.Managers;
 using Application.Queries;
 using Client.Extensions;
+using Identity.Application.Managers.Auth;
+using Identity.Application.Managers.Profile;
+using Identity.Application.Managers.TwoFactor;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -14,12 +15,20 @@ namespace Client.Controllers;
 [EnableRateLimiting("standard")]
 public sealed class IdentityController : ControllerBase
 {
-    private readonly IIdentityManager _manager;
+    private readonly IAuthManager _authManager;
+    private readonly ITwoFactorManager _twoFactorManager;
+    private readonly IProfileManager _profileManager;
     private readonly IIdentityQuery _query;
 
-    public IdentityController(IIdentityManager manager, IIdentityQuery query)
+    public IdentityController(
+        IAuthManager authManager,
+        ITwoFactorManager twoFactorManager,
+        IProfileManager profileManager,
+        IIdentityQuery query)
     {
-        _manager = manager;
+        _authManager = authManager;
+        _twoFactorManager = twoFactorManager;
+        _profileManager = profileManager;
         _query = query;
     }
 
@@ -28,7 +37,7 @@ public sealed class IdentityController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        var result = await _manager.RegisterAsync(request);
+        var result = await _authManager.RegisterAsync(request);
         return result.IsSuccess
             ? StatusCode(StatusCodes.Status201Created)
             : BadRequest(new { error = result.Error });
@@ -39,7 +48,7 @@ public sealed class IdentityController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var result = await _manager.LoginAsync(request);
+        var result = await _authManager.LoginAsync(request);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -56,7 +65,7 @@ public sealed class IdentityController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
     {
-        var result = await _manager.ConfirmEmailAsync(request);
+        var result = await _authManager.ConfirmEmailAsync(request);
         return result.IsSuccess
             ? Ok()
             : BadRequest(new { error = result.Error });
@@ -67,7 +76,7 @@ public sealed class IdentityController : ControllerBase
     public async Task<IActionResult> EnableTwoFactor()
     {
         var userId = User.GetUserId();
-        var result = await _manager.EnableTwoFactorAsync(userId);
+        var result = await _twoFactorManager.EnableTwoFactorAsync(userId);
         return result.IsSuccess
             ? Ok(result.Value)
             : BadRequest(new { error = result.Error });
@@ -78,7 +87,7 @@ public sealed class IdentityController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> VerifyTwoFactor(TwoFactorVerifyRequest request)
     {
-        var result = await _manager.VerifyTwoFactorAsync(request);
+        var result = await _twoFactorManager.VerifyTwoFactorAsync(request);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -102,7 +111,7 @@ public sealed class IdentityController : ControllerBase
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
     {
         var userId = User.GetUserId();
-        var result = await _manager.UpdateProfileAsync(userId, request);
+        var result = await _profileManager.UpdateProfileAsync(userId, request);
         return result.IsSuccess
             ? NoContent()
             : BadRequest(new { error = result.Error });
@@ -120,7 +129,7 @@ public sealed class IdentityController : ControllerBase
 
         await using var stream = file.OpenReadStream();
         var request = new UploadAvatarRequest(stream, file.ContentType, file.Length);
-        var result = await _manager.UploadAvatarAsync(userId, request);
+        var result = await _profileManager.UploadAvatarAsync(userId, request);
 
         return result.IsSuccess
             ? Ok(result.Value)

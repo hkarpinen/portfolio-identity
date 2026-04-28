@@ -1,6 +1,6 @@
-using Application.Managers;
 using Application.Queries;
 using Client.Extensions;
+using Identity.Application.Managers.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,12 +13,12 @@ namespace Client.Controllers;
 [EnableRateLimiting("standard")]
 public sealed class AdminController : ControllerBase
 {
-    private readonly IIdentityManager _manager;
+    private readonly IAdminManager _adminManager;
     private readonly IIdentityQuery _query;
 
-    public AdminController(IIdentityManager manager, IIdentityQuery query)
+    public AdminController(IAdminManager adminManager, IIdentityQuery query)
     {
-        _manager = manager;
+        _adminManager = adminManager;
         _query = query;
     }
 
@@ -33,7 +33,7 @@ public sealed class AdminController : ControllerBase
     [EnableRateLimiting("write")]
     public async Task<IActionResult> BanUser([FromRoute] Guid id)
     {
-        var result = await _manager.BanAsync(id);
+        var result = await _adminManager.BanAsync(id);
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
@@ -41,7 +41,7 @@ public sealed class AdminController : ControllerBase
     [EnableRateLimiting("write")]
     public async Task<IActionResult> ChangeRole([FromRoute] Guid id, [FromBody] ChangeRoleBody body)
     {
-        var result = await _manager.ChangeRoleAsync(id, body.Role);
+        var result = await _adminManager.ChangeRoleAsync(id, body.Role);
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 }
