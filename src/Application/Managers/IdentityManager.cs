@@ -132,26 +132,6 @@ internal sealed class IdentityManager : IIdentityManager
         return Result<LoginResult>.Success(new LoginResult(false, tokenResult.Token, tokenResult.ExpiresAt));
     }
 
-    public async Task<Result<UserProfileResponse>> GetProfileAsync(Guid userId)
-    {
-        var user = await _userRepository.GetByIdAsync(new UserId(userId));
-
-        if (user is null)
-            return Result<UserProfileResponse>.Failure("User not found.");
-
-        var response = new UserProfileResponse(
-            user.Id,
-            user.Email!,
-            user.DisplayName,
-            user.AvatarUrl,
-            user.Role.ToString(),
-            user.EmailConfirmed,
-            user.TwoFactorEnabled,
-            user.CreatedAt);
-
-        return Result<UserProfileResponse>.Success(response);
-    }
-
     public async Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
     {
         var user = await _userRepository.GetByIdAsync(new UserId(userId));
@@ -207,6 +187,20 @@ internal sealed class IdentityManager : IIdentityManager
 
         user.Ban();
 
+        await _userRepository.SaveAsync(user);
+        return Result.Success();
+    }
+
+    public async Task<Result> ChangeRoleAsync(Guid userId, string role)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null)
+            return Result.Failure("User not found.");
+
+        if (!Enum.TryParse<UserRole>(role, ignoreCase: true, out var newRole))
+            return Result.Failure($"Unknown role '{role}'.");
+
+        user.ChangeRole(newRole);
         await _userRepository.SaveAsync(user);
         return Result.Success();
     }

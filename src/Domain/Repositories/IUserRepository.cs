@@ -7,6 +7,7 @@ public interface IUserRepository
     Task<AppUser?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default);
     Task<AppUser?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default);
     Task SaveAsync(AppUser user, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AppUser> Items, int Total)> ListAsync(int page, int pageSize, CancellationToken cancellationToken = default);
 
     // Password & account management (delegated to ASP.NET Identity in infrastructure)
     Task<(bool Succeeded, string? Error)> CreateWithPasswordAsync(AppUser user, string password, CancellationToken cancellationToken = default);

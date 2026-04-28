@@ -1,6 +1,7 @@
 using Application;
 using Application.Contracts;
 using Application.Managers;
+using Application.Queries;
 using Client.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,10 +15,12 @@ namespace Client.Controllers;
 public sealed class IdentityController : ControllerBase
 {
     private readonly IIdentityManager _manager;
+    private readonly IIdentityQuery _query;
 
-    public IdentityController(IIdentityManager manager)
+    public IdentityController(IIdentityManager manager, IIdentityQuery query)
     {
         _manager = manager;
+        _query = query;
     }
 
     [HttpPost("register")]
@@ -88,10 +91,10 @@ public sealed class IdentityController : ControllerBase
     public async Task<IActionResult> GetProfile()
     {
         var userId = User.GetUserId();
-        var result = await _manager.GetProfileAsync(userId);
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : NotFound(new { error = result.Error });
+        var result = await _query.GetProfileAsync(userId);
+        return result is not null
+            ? Ok(result)
+            : NotFound(new { error = "User not found." });
     }
 
     [HttpPut("me")]

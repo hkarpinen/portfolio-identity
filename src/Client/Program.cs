@@ -67,6 +67,10 @@ try
         options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build();
+        options.AddPolicy("AdminOnly", policy =>
+            policy.RequireAssertion(ctx =>
+                ctx.User.FindFirst("role")?.Value == "Admin" ||
+                ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin"));
     });
 
     // Controllers & Validation
@@ -109,8 +113,8 @@ try
 
         options.AddFixedWindowLimiter("auth", opt =>
         {
-            opt.PermitLimit = 5;
-            opt.Window = TimeSpan.FromMinutes(5);
+            opt.PermitLimit = 20;
+            opt.Window = TimeSpan.FromMinutes(1);
             opt.QueueLimit = 0;
         });
     });

@@ -16,12 +16,16 @@ internal sealed class OutboxPublisher : BackgroundService
     private readonly ILogger<OutboxPublisher> _logger;
 
     // Keys match IDomainEvent type names stored by OutboxExtensions.AddToOutbox.
-    // Values are the flat wire-message types whose JSON shape matches exactly.
-    private static readonly Dictionary<string, Type> EventTypeMap = new()
+    // Values are (wire-message type, queue name).
+    // We Send to a named durable queue instead of Publish to an exchange so
+    // messages are buffered by RabbitMQ even when consumers aren't yet running.
+    // Queue names must match the kebab-case endpoint names registered by each
+    // consumer service (MassTransit SetKebabCaseEndpointNameFormatter).
+    private static readonly Dictionary<string, (Type MessageType, string Queue)> EventTypeMap = new()
     {
-        [nameof(UserRegistered)]      = typeof(UserRegisteredEvent),
-        [nameof(UserProfileUpdated)]  = typeof(UserProfileUpdatedEvent),
-        [nameof(UserBanned)]          = typeof(UserBannedEvent)
+        [nameof(UserRegistered)]      = (typeof(UserRegisteredEvent),     "user-registered"),
+        [nameof(UserProfileUpdated)]  = (typeof(UserProfileUpdatedEvent), "user-profile-updated"),
+        [nameof(UserBanned)]          = (typeof(UserBannedEvent),         "user-banned"),
     };
 
     // Must match OutboxExtensions.JsonOptions so Deserialize succeeds.
@@ -57,17 +61,32 @@ internal sealed class OutboxPublisher : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        var bus = scope.ServiceProvider.GetRequiredService<IBus>();
+        var sendEndpointProvider = scope.ServiceProvider.GetRequiredService<ISendEndpointProvider>();
+        var rabbitHost = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()
+            ["RabbitMq:Host"] ?? "localhost";
 
+        // Begin an explicit transaction so that FOR UPDATE SKIP LOCKED holds row
+        // locks until SaveChangesAsync + CommitAsync. Without a transaction the
+        // lock is released immediately, which would not prevent a second replica
+        // from selecting the same rows in a concurrent poll cycle.
+        using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        // FOR UPDATE SKIP LOCKED ensures that when identity is scaled to 2+
+        // replicas each instance claims a disjoint set of rows, preventing
+        // duplicate sends without requiring a distributed lock.
         var messages = await dbContext.OutboxMessages
-            .Where(m => !m.Published && !m.DeadLettered)
-            .OrderBy(m => m.CreatedAt)
-            .Take(50)
+            .FromSqlRaw("""
+                SELECT * FROM outbox_messages
+                WHERE published = false AND dead_lettered = false
+                ORDER BY created_at
+                LIMIT 50
+                FOR UPDATE SKIP LOCKED
+                """)
             .ToListAsync(cancellationToken);
 
         foreach (var message in messages)
         {
-            if (!EventTypeMap.TryGetValue(message.EventType, out var messageType))
+            if (!EventTypeMap.TryGetValue(message.EventType, out var entry))
             {
                 _logger.LogWarning("Unknown event type {EventType} on message {Id} — dead-lettering", message.EventType, message.Id);
                 message.DeadLettered = true;
@@ -78,7 +97,7 @@ internal sealed class OutboxPublisher : BackgroundService
 
             try
             {
-                var @event = JsonSerializer.Deserialize(message.Payload, messageType, JsonOptions);
+                var @event = JsonSerializer.Deserialize(message.Payload, entry.MessageType, JsonOptions);
                 if (@event is null)
                 {
                     message.DeadLettered = true;
@@ -87,13 +106,18 @@ internal sealed class OutboxPublisher : BackgroundService
                     continue;
                 }
 
-                await bus.Publish(@event, messageType, cancellationToken);
+                // Send to the named durable queue so messages are buffered by
+                // RabbitMQ even when the consumer service isn't running yet.
+                var endpoint = await sendEndpointProvider.GetSendEndpoint(
+                    new Uri($"rabbitmq://{rabbitHost}/{entry.Queue}"));
+                await endpoint.Send(@event, entry.MessageType, cancellationToken);
 
                 message.Published = true;
                 message.PublishedAt = DateTime.UtcNow;
                 message.LastAttemptAt = DateTime.UtcNow;
 
-                _logger.LogInformation("Published outbox message {Id} of type {EventType}", message.Id, message.EventType);
+                _logger.LogInformation("Sent outbox message {Id} of type {EventType} to queue {Queue}",
+                    message.Id, message.EventType, entry.Queue);
             }
             catch (Exception ex)
             {
@@ -113,12 +137,13 @@ internal sealed class OutboxPublisher : BackgroundService
                 else
                 {
                     _logger.LogWarning(ex,
-                        "Failed to publish outbox message {Id} (attempt {Attempt}/{Max})",
+                        "Failed to send outbox message {Id} (attempt {Attempt}/{Max})",
                         message.Id, message.RetryCount, OutboxMessage.MaxRetryCount);
                 }
             }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 }
