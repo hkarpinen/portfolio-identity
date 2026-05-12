@@ -1,4 +1,4 @@
-namespace Application.Services;
+namespace Application.Ports;
 
 public interface IFileStorage
 {

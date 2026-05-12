@@ -1,10 +1,11 @@
 using Application;
-using Application.Contracts;
+using Application.Commands;
+using Application.Dtos;
 
 namespace Identity.Application.Managers.TwoFactor;
 
 public interface ITwoFactorManager
 {
-    Task<Result<EnableTwoFactorResponse>> EnableTwoFactorAsync(Guid userId);
-    Task<Result<LoginResult>> VerifyTwoFactorAsync(TwoFactorVerifyRequest request);
+    Task<Result<TwoFactorSetupDto>> EnableTwoFactorAsync(Guid userId);
+    Task<Result<LoginDto>> VerifyTwoFactorAsync(VerifyTwoFactorCommand command);
 }

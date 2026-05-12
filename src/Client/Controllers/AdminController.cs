@@ -14,9 +14,9 @@ namespace Client.Controllers;
 public sealed class AdminController : ControllerBase
 {
     private readonly IAdminManager _adminManager;
-    private readonly IIdentityQuery _query;
+    private readonly IUserQuery _query;
 
-    public AdminController(IAdminManager adminManager, IIdentityQuery query)
+    public AdminController(IAdminManager adminManager, IUserQuery query)
     {
         _adminManager = adminManager;
         _query = query;

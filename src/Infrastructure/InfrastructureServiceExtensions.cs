@@ -1,8 +1,7 @@
-using Application.Services;
+using Application.Ports;
 using Application.Queries;
+using Application.Repositories;
 using Domain.Aggregates.User;
-using Domain.Repositories;
-using Domain.Services;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Queries;
@@ -48,10 +47,6 @@ public static class InfrastructureServiceExtensions
                     h.Password(rabbitConfig["Password"]!);
                 });
 
-                // Explicitly declare exchanges as durable (MassTransit default, stated for clarity).
-                // Note: consumer queues are declared durable by the bills/forum services on their
-                // first connect. Until that first connect, messages published here will be dropped
-                // if no queue is yet bound. After first connect the queues persist in RabbitMQ.
                 cfg.Publish<Infrastructure.Messaging.Events.UserRegisteredEvent>(p => p.Durable = true);
                 cfg.Publish<Infrastructure.Messaging.Events.UserProfileUpdatedEvent>(p => p.Durable = true);
                 cfg.Publish<Infrastructure.Messaging.Events.UserBannedEvent>(p => p.Durable = true);
@@ -62,7 +57,7 @@ public static class InfrastructureServiceExtensions
         services.Configure<LocalFileStorageOptions>(configuration.GetSection("Storage"));
 
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IIdentityQuery, IdentityQuery>();
+        services.AddScoped<IUserQuery, UserQuery>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IEmailGateway, SmtpEmailGateway>();
         services.AddScoped<IPasswordAuthenticationEngine, PasswordAuthenticationEngine>();

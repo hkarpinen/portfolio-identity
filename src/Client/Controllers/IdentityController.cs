@@ -1,4 +1,5 @@
-using Application.Contracts;
+using Application.Commands;
+using Application.Dtos;
 using Application.Queries;
 using Client.Extensions;
 using Identity.Application.Managers.Auth;
@@ -18,13 +19,13 @@ public sealed class IdentityController : ControllerBase
     private readonly IAuthManager _authManager;
     private readonly ITwoFactorManager _twoFactorManager;
     private readonly IProfileManager _profileManager;
-    private readonly IIdentityQuery _query;
+    private readonly IUserQuery _query;
 
     public IdentityController(
         IAuthManager authManager,
         ITwoFactorManager twoFactorManager,
         IProfileManager profileManager,
-        IIdentityQuery query)
+        IUserQuery query)
     {
         _authManager = authManager;
         _twoFactorManager = twoFactorManager;
@@ -35,9 +36,9 @@ public sealed class IdentityController : ControllerBase
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> Register(RegisterRequest request)
+    public async Task<IActionResult> Register(RegisterCommand command)
     {
-        var result = await _authManager.RegisterAsync(request);
+        var result = await _authManager.RegisterAsync(command);
         return result.IsSuccess
             ? StatusCode(StatusCodes.Status201Created)
             : BadRequest(new { error = result.Error });
@@ -46,9 +47,9 @@ public sealed class IdentityController : ControllerBase
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> Login(LoginRequest request)
+    public async Task<IActionResult> Login(LoginCommand command)
     {
-        var result = await _authManager.LoginAsync(request);
+        var result = await _authManager.LoginAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -63,9 +64,9 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("confirm-email")]
     [AllowAnonymous]
-    public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
+    public async Task<IActionResult> ConfirmEmail(ConfirmEmailCommand command)
     {
-        var result = await _authManager.ConfirmEmailAsync(request);
+        var result = await _authManager.ConfirmEmailAsync(command);
         return result.IsSuccess
             ? Ok()
             : BadRequest(new { error = result.Error });
@@ -85,9 +86,9 @@ public sealed class IdentityController : ControllerBase
     [HttpPost("2fa/verify")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> VerifyTwoFactor(TwoFactorVerifyRequest request)
+    public async Task<IActionResult> VerifyTwoFactor(VerifyTwoFactorCommand command)
     {
-        var result = await _twoFactorManager.VerifyTwoFactorAsync(request);
+        var result = await _twoFactorManager.VerifyTwoFactorAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -108,10 +109,10 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPut("me")]
     [Authorize]
-    public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile(UpdateProfileCommand command)
     {
         var userId = User.GetUserId();
-        var result = await _profileManager.UpdateProfileAsync(userId, request);
+        var result = await _profileManager.UpdateProfileAsync(userId, command);
         return result.IsSuccess
             ? NoContent()
             : BadRequest(new { error = result.Error });
@@ -128,8 +129,8 @@ public sealed class IdentityController : ControllerBase
         var userId = User.GetUserId();
 
         await using var stream = file.OpenReadStream();
-        var request = new UploadAvatarRequest(stream, file.ContentType, file.Length);
-        var result = await _profileManager.UploadAvatarAsync(userId, request);
+        var command = new UploadAvatarCommand(stream, file.ContentType, file.Length);
+        var result = await _profileManager.UploadAvatarAsync(userId, command);
 
         return result.IsSuccess
             ? Ok(result.Value)

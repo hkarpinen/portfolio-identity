@@ -1,5 +1,5 @@
 using Domain.Aggregates.User;
-using Domain.Repositories;
+using Application.Repositories;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -22,17 +22,6 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task<AppUser?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default)
         => await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email.Value, cancellationToken);
-
-    public async Task<(IReadOnlyList<AppUser> Items, int Total)> ListAsync(int page, int pageSize, CancellationToken cancellationToken = default)
-    {
-        var total = await _dbContext.Users.CountAsync(cancellationToken);
-        var items = await _dbContext.Users
-            .OrderBy(u => u.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-        return (items, total);
-    }
 
     public async Task SaveAsync(AppUser user, CancellationToken cancellationToken = default)
     {

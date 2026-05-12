@@ -1,11 +1,11 @@
-using Application.Contracts;
+using Application.Commands;
 using FluentValidation;
 
 namespace Client.Validators;
 
-public sealed class LoginRequestValidator : AbstractValidator<LoginRequest>
+public sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
-    public LoginRequestValidator()
+    public LoginCommandValidator()
     {
         RuleFor(x => x.Email)
             .NotEmpty();

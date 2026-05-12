@@ -76,7 +76,7 @@ internal sealed class OutboxPublisher : BackgroundService
         // duplicate sends without requiring a distributed lock.
         var messages = await dbContext.OutboxMessages
             .FromSqlRaw("""
-                SELECT * FROM outbox_messages
+                SELECT * FROM identity.outbox_messages
                 WHERE published = false AND dead_lettered = false
                 ORDER BY created_at
                 LIMIT 50

@@ -1,10 +1,11 @@
 using Application;
-using Application.Contracts;
+using Application.Commands;
+using Application.Dtos;
 
 namespace Identity.Application.Managers.Profile;
 
 public interface IProfileManager
 {
-    Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
-    Task<Result<UploadAvatarResponse>> UploadAvatarAsync(Guid userId, UploadAvatarRequest request);
+    Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileCommand command);
+    Task<Result<UploadAvatarDto>> UploadAvatarAsync(Guid userId, UploadAvatarCommand command);
 }

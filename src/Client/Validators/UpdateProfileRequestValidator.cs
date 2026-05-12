@@ -1,11 +1,11 @@
-using Application.Contracts;
+using Application.Commands;
 using FluentValidation;
 
 namespace Client.Validators;
 
-public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProfileCommand>
 {
-    public UpdateProfileRequestValidator()
+    public UpdateProfileCommandValidator()
     {
         RuleFor(x => x.DisplayName)
             .NotEmpty()

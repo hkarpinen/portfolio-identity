@@ -1,8 +1,9 @@
 using Application;
-using Application.Contracts;
-using Application.Services;
+using Application.Commands;
+using Application.Dtos;
+using Application.Ports;
+using Application.Repositories;
 using Domain.Aggregates.User;
-using Domain.Repositories;
 
 namespace Identity.Application.Managers.Profile;
 
@@ -26,35 +27,35 @@ internal sealed class ProfileManager : IProfileManager
         _fileStorage = fileStorage;
     }
 
-    public async Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
+    public async Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileCommand command)
     {
         var user = await _userRepository.GetByIdAsync(new UserId(userId));
 
         if (user is null)
             return Result.Failure("User not found.");
 
-        user.UpdateProfile(request.DisplayName, request.AvatarUrl);
+        user.UpdateProfile(command.DisplayName, command.AvatarUrl);
 
         await _userRepository.SaveAsync(user);
         return Result.Success();
     }
 
-    public async Task<Result<UploadAvatarResponse>> UploadAvatarAsync(Guid userId, UploadAvatarRequest request)
+    public async Task<Result<UploadAvatarDto>> UploadAvatarAsync(Guid userId, UploadAvatarCommand command)
     {
-        if (request.Length <= 0)
-            return Result<UploadAvatarResponse>.Failure("File is empty.");
+        if (command.Length <= 0)
+            return Result<UploadAvatarDto>.Failure("File is empty.");
 
-        if (request.Length > MaxAvatarBytes)
-            return Result<UploadAvatarResponse>.Failure("File exceeds the 5 MB limit.");
+        if (command.Length > MaxAvatarBytes)
+            return Result<UploadAvatarDto>.Failure("File exceeds the 5 MB limit.");
 
-        if (!AllowedAvatarContentTypes.Contains(request.ContentType))
-            return Result<UploadAvatarResponse>.Failure("Unsupported image type. Use PNG, JPEG, WebP, or GIF.");
+        if (!AllowedAvatarContentTypes.Contains(command.ContentType))
+            return Result<UploadAvatarDto>.Failure("Unsupported image type. Use PNG, JPEG, WebP, or GIF.");
 
         var user = await _userRepository.GetByIdAsync(new UserId(userId));
         if (user is null)
-            return Result<UploadAvatarResponse>.Failure("User not found.");
+            return Result<UploadAvatarDto>.Failure("User not found.");
 
-        var extension = request.ContentType.ToLowerInvariant() switch
+        var extension = command.ContentType.ToLowerInvariant() switch
         {
             "image/png" => "png",
             "image/jpeg" => "jpg",
@@ -64,11 +65,11 @@ internal sealed class ProfileManager : IProfileManager
         };
 
         var key = $"identity/users/{userId}/avatar.{extension}";
-        var avatarUrl = await _fileStorage.SaveAsync(key, request.Content, request.ContentType);
+        var avatarUrl = await _fileStorage.SaveAsync(key, command.Content, command.ContentType);
 
         user.ChangeAvatar(avatarUrl);
         await _userRepository.SaveAsync(user);
 
-        return Result<UploadAvatarResponse>.Success(new UploadAvatarResponse(avatarUrl));
+        return Result<UploadAvatarDto>.Success(new UploadAvatarDto(avatarUrl));
     }
 }

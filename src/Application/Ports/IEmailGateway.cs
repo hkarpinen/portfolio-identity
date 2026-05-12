@@ -1,4 +1,4 @@
-namespace Domain.Services;
+namespace Application.Ports;
 
 public interface IEmailGateway
 {

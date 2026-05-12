@@ -1,6 +1,6 @@
 using Domain.Aggregates.User;
 
-namespace Application.Services;
+namespace Application.Ports;
 
 public sealed record PasswordCheckResult(bool Succeeded, bool IsLockedOut);
 

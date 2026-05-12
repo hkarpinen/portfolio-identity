@@ -1,4 +1,4 @@
-using Application.Contracts;
+using Application.Dtos;
 using Application.Queries;
 using Domain.Aggregates.User;
 using Infrastructure.Persistence;
@@ -6,16 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Queries;
 
-internal sealed class IdentityQuery : IIdentityQuery
+internal sealed class UserQuery : IUserQuery
 {
     private readonly IdentityDbContext _dbContext;
 
-    public IdentityQuery(IdentityDbContext dbContext)
+    public UserQuery(IdentityDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public async Task<UserProfileResponse?> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<UserProfileDto?> GetProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await _dbContext.Users
             .AsNoTracking()
@@ -24,7 +24,7 @@ internal sealed class IdentityQuery : IIdentityQuery
         if (user is null)
             return null;
 
-        return new UserProfileResponse(
+        return new UserProfileDto(
             user.Id,
             user.Email!,
             user.DisplayName,
@@ -35,7 +35,7 @@ internal sealed class IdentityQuery : IIdentityQuery
             user.CreatedAt);
     }
 
-    public async Task<(IReadOnlyList<AdminUserResponse> Items, int Total)> ListUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<AdminUserDto> Items, int Total)> ListUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var total = await _dbContext.Users.CountAsync(cancellationToken);
 
@@ -44,7 +44,7 @@ internal sealed class IdentityQuery : IIdentityQuery
             .OrderBy(u => u.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(u => new AdminUserResponse(
+            .Select(u => new AdminUserDto(
                 u.Id,
                 u.Email ?? string.Empty,
                 u.DisplayName,
