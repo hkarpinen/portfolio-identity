@@ -64,6 +64,7 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<IFileStorage, LocalFileStorage>();
 
         services.AddHostedService<OutboxPublisher>();
+        services.AddHostedService<DemoExpiryService>();
 
         return services;
     }

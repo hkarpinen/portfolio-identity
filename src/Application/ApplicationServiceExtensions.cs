@@ -1,5 +1,6 @@
 using Identity.Application.Managers.Admin;
 using Identity.Application.Managers.Auth;
+using Identity.Application.Managers.Demo;
 using Identity.Application.Managers.Profile;
 using Identity.Application.Managers.TwoFactor;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,8 @@ public static class ApplicationServiceExtensions
         services.AddScoped<ITwoFactorManager, TwoFactorManager>();
         services.AddScoped<IProfileManager, ProfileManager>();
         services.AddScoped<IAdminManager, AdminManager>();
+        services.AddScoped<IDemoManager, DemoManager>();
+        services.AddScoped<IDemoExpiryManager, DemoExpiryManager>();
         return services;
     }
 }

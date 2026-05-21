@@ -6,5 +6,5 @@ public sealed record TokenResult(string Token, DateTimeOffset ExpiresAt);
 
 public interface IJwtTokenGenerator
 {
-    TokenResult GenerateToken(AppUser user);
+    TokenResult GenerateToken(AppUser user, DateTimeOffset? overrideExpiry = null);
 }

@@ -18,6 +18,24 @@ internal sealed class ProfileManager : IProfileManager
         "image/gif"
     };
 
+    // Guards against content-type spoofing
+    private static readonly Dictionary<string, byte[]> AvatarMagicBytes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["image/jpeg"] = [0xFF, 0xD8, 0xFF],
+        ["image/png"]  = [0x89, 0x50, 0x4E, 0x47],
+        ["image/gif"]  = [0x47, 0x49, 0x46, 0x38],
+        ["image/webp"] = [0x52, 0x49, 0x46, 0x46],
+    };
+
+    private static bool HasValidMagicBytes(Stream stream, string contentType)
+    {
+        if (!AvatarMagicBytes.TryGetValue(contentType, out var sig)) return false;
+        Span<byte> header = stackalloc byte[8];
+        var read = stream.Read(header);
+        if (stream.CanSeek) stream.Position = 0;
+        return header[..read].StartsWith(sig);
+    }
+
     private readonly IUserRepository _userRepository;
     private readonly IFileStorage _fileStorage;
 
@@ -50,6 +68,9 @@ internal sealed class ProfileManager : IProfileManager
 
         if (!AllowedAvatarContentTypes.Contains(command.ContentType))
             return Result<UploadAvatarDto>.Failure("Unsupported image type. Use PNG, JPEG, WebP, or GIF.");
+
+        if (!HasValidMagicBytes(command.Content, command.ContentType))
+            return Result<UploadAvatarDto>.Failure("File content does not match the declared type.");
 
         var user = await _userRepository.GetByIdAsync(new UserId(userId));
         if (user is null)

@@ -11,6 +11,9 @@ public class AppUser : IdentityUser<Guid>
     public string? AvatarUrl { get; private set; }
     public UserRole Role { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public bool IsDemo { get; private set; }
+    public DateTime? DemoExpiresAt { get; private set; }
+    public DateTime? DemoExpiredAt { get; private set; }
 
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
@@ -90,5 +93,46 @@ public class AppUser : IdentityUser<Guid>
             DateTime.UtcNow,
             new UserId(Id),
             newRole));
+    }
+
+    public static AppUser CreateDemo(string displayName)
+    {
+        var userId = UserId.New();
+        var now = DateTime.UtcNow;
+        var expiresAt = now.AddHours(2);
+        var email = $"demo-{userId.Value:N}@demo.internal";
+
+        var user = new AppUser
+        {
+            Id = userId.Value,
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            DisplayName = displayName,
+            Role = UserRole.Demo,
+            CreatedAt = now,
+            IsDemo = true,
+            DemoExpiresAt = expiresAt
+        };
+
+        user._domainEvents.Add(new DemoUserCreated(
+            Guid.NewGuid(),
+            now,
+            userId,
+            email,
+            displayName,
+            expiresAt));
+
+        return user;
+    }
+
+    public void ExpireDemo()
+    {
+        DemoExpiredAt = DateTime.UtcNow;
+
+        _domainEvents.Add(new DemoUserExpired(
+            Guid.NewGuid(),
+            DemoExpiredAt.Value,
+            new UserId(Id)));
     }
 }

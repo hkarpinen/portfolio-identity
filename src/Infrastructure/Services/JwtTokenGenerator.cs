@@ -17,7 +17,7 @@ internal sealed class JwtTokenGenerator : IJwtTokenGenerator
         _settings = settings.Value;
     }
 
-    public TokenResult GenerateToken(AppUser user)
+    public TokenResult GenerateToken(AppUser user, DateTimeOffset? overrideExpiry = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -33,7 +33,7 @@ internal sealed class JwtTokenGenerator : IJwtTokenGenerator
         if (!string.IsNullOrEmpty(user.AvatarUrl))
             claims.Add(new Claim("avatarUrl", user.AvatarUrl));
 
-        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_settings.ExpirationMinutes);
+        var expiresAt = overrideExpiry ?? DateTimeOffset.UtcNow.AddMinutes(_settings.ExpirationMinutes);
 
         var token = new JwtSecurityToken(
             issuer: _settings.Issuer,

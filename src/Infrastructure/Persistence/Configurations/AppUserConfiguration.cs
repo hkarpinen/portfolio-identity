@@ -24,6 +24,13 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         builder.Property(u => u.CreatedAt)
             .IsRequired();
 
+        builder.Property(u => u.IsDemo)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.DemoExpiresAt);
+        builder.Property(u => u.DemoExpiredAt);
+
         builder.Ignore(u => u.DomainEvents);
     }
 }

@@ -8,6 +8,7 @@ public interface IUserRepository
     Task<AppUser?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default);
     Task SaveAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> CreateWithPasswordAsync(AppUser user, string password, CancellationToken cancellationToken = default);
+    Task<(bool Succeeded, string? Error)> CreateDemoAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<string> GenerateEmailConfirmationTokenAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> ConfirmEmailAsync(AppUser user, string token, CancellationToken cancellationToken = default);
     Task ResetAuthenticatorKeyAsync(AppUser user, CancellationToken cancellationToken = default);
@@ -15,4 +16,5 @@ public interface IUserRepository
     Task<bool> VerifyTwoFactorTokenAsync(AppUser user, string code, CancellationToken cancellationToken = default);
     Task SetTwoFactorEnabledAsync(AppUser user, bool enabled, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> UpdateAsync(AppUser user, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AppUser>> GetExpiredDemoUsersAsync(CancellationToken cancellationToken = default);
 }

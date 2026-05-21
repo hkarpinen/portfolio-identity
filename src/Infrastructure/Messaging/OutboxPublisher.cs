@@ -23,9 +23,11 @@ internal sealed class OutboxPublisher : BackgroundService
     // consumer service (MassTransit SetKebabCaseEndpointNameFormatter).
     private static readonly Dictionary<string, (Type MessageType, string Queue)> EventTypeMap = new()
     {
-        [nameof(UserRegistered)]      = (typeof(UserRegisteredEvent),     "user-registered"),
-        [nameof(UserProfileUpdated)]  = (typeof(UserProfileUpdatedEvent), "user-profile-updated"),
-        [nameof(UserBanned)]          = (typeof(UserBannedEvent),         "user-banned"),
+        [nameof(UserRegistered)]      = (typeof(UserRegisteredEvent),      "user-registered"),
+        [nameof(UserProfileUpdated)]  = (typeof(UserProfileUpdatedEvent),  "user-profile-updated"),
+        [nameof(UserBanned)]          = (typeof(UserBannedEvent),          "user-banned"),
+        [nameof(DemoUserCreated)]     = (typeof(DemoUserCreatedEvent),     "demo-user-created"),
+        [nameof(DemoUserExpired)]     = (typeof(DemoUserExpiredEvent),     "demo-user-expired"),
     };
 
     // Must match OutboxExtensions.JsonOptions so Deserialize succeeds.

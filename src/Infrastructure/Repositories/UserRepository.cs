@@ -79,6 +79,25 @@ internal sealed class UserRepository : IUserRepository
         return (result.Succeeded, result.Succeeded ? null : Describe(result));
     }
 
+    public async Task<IReadOnlyList<AppUser>> GetExpiredDemoUsersAsync(CancellationToken cancellationToken = default)
+        => await _dbContext.Users
+            .Where(u => u.IsDemo && u.DemoExpiresAt < DateTime.UtcNow && u.DemoExpiredAt == null)
+            .ToListAsync(cancellationToken);
+
+    public async Task<(bool Succeeded, string? Error)> CreateDemoAsync(AppUser user, CancellationToken cancellationToken = default)
+    {
+        var result = await _userManager.CreateAsync(user);
+        if (!result.Succeeded)
+            return (false, Describe(result));
+
+        foreach (var domainEvent in user.DomainEvents)
+            _dbContext.AddToOutbox(domainEvent);
+        user.ClearDomainEvents();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return (true, null);
+    }
+
     private static string Describe(IdentityResult result) =>
         string.Join("; ", result.Errors.Select(e => e.Description));
 }
