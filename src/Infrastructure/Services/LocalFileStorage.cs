@@ -40,7 +40,7 @@ public sealed class LocalFileStorageOptions
 {
     public string LocalPath { get; set; } = string.Empty;
     /// <summary>
-    /// Absolute public URL prefix for stored files (e.g. "http://localhost/uploads/avatars" in dev,
+    /// Absolute public URL prefix for stored files (e.g. "http://localhost:3000/uploads/avatars" in dev,
     /// "https://example.com/uploads/avatars" in prod). Used so persisted URLs are environment-independent
     /// and survive migration to object storage with no data changes.
     /// </summary>
