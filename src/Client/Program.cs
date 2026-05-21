@@ -87,14 +87,17 @@ try
     builder.Services.AddHealthChecks();
 
     // CORS
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    var corsOriginsEnv = Environment.GetEnvironmentVariable("CORS_ORIGINS");
+    var allowedOrigins = corsOriginsEnv is not null
+        ? corsOriginsEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        : builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
     builder.Services.AddCors(options =>
     {
         options.AddDefaultPolicy(policy =>
         {
             policy.WithOrigins(allowedOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
+                .WithHeaders("Content-Type", "Authorization")
+                .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
                 .AllowCredentials();
         });
     });
@@ -140,7 +143,9 @@ try
 
     app.MapControllers();
     app.MapHealthChecks("/healthz").AllowAnonymous();
-    app.MapScalarApiReference();
+
+    if (app.Environment.IsDevelopment())
+        app.MapScalarApiReference();
 
     using (var scope = app.Services.CreateScope())
     {
