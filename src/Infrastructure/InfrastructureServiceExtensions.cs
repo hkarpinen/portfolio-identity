@@ -55,6 +55,7 @@ public static class InfrastructureServiceExtensions
 
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.Configure<LocalFileStorageOptions>(configuration.GetSection("Storage"));
+        services.Configure<EmailOptions>(configuration.GetSection("Email"));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserQuery, UserQuery>();
