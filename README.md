@@ -75,8 +75,33 @@ src/
 | `RabbitMq__Password` | RabbitMQ password |
 | `Email__Host` | SMTP hostname (Mailpit in dev: `localhost`) |
 | `Email__Port` | SMTP port (Mailpit default: `1025`) |
+| `Email__Username` | SMTP username (empty in dev) |
+| `Email__Password` | SMTP password (empty in dev) |
+| `Email__FromAddress` | From address for outbound email |
+| `Email__FromName` | From display name |
+| `Email__BaseUrl` | Base URL used in email links |
 | `Storage__LocalPath` | Filesystem path for avatar uploads |
 | `Storage__PublicBaseUrl` | Public URL prefix served over static files |
+| `Recaptcha__SecretKey` | reCAPTCHA v2 secret key |
+| `Cors__AllowedOrigins__0` | First allowed CORS origin |
+
+## CI/CD
+
+Two workflows run on push to `main`:
+
+| Workflow | File | What it does |
+|---|---|---|
+| **Build & Publish** | `.github/workflows/docker-publish.yml` | Runs `dotnet test`, builds the Docker image, pushes to `ghcr.io/hkarpinen/portfolio-identity:latest` |
+| **Deploy** | `.github/workflows/deploy.yml` | Triggers after Build & Publish succeeds; SSHes into the server, pulls the new image, and restarts only the `identity` container |
+
+### Required GitHub Actions secrets
+
+| Secret | Description |
+|---|---|
+| `DEPLOY_HOST` | VPS IP address or hostname |
+| `DEPLOY_USER` | SSH user on the server |
+| `DEPLOY_KEY` | Private SSH key for that user |
+| `DEPLOY_PATH` | Absolute path to the infra directory on the server |
 
 ## Docs
 
