@@ -117,6 +117,13 @@ try
             opt.Window = TimeSpan.FromMinutes(1);
             opt.QueueLimit = 0;
         });
+
+        options.AddFixedWindowLimiter("write", opt =>
+        {
+            opt.PermitLimit = 10;
+            opt.Window = TimeSpan.FromMinutes(1);
+            opt.QueueLimit = 0;
+        });
     });
 
     var app = builder.Build();

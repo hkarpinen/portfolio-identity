@@ -13,8 +13,13 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
 
         RuleFor(x => x.AvatarUrl)
             .MaximumLength(500)
-            .Must(url => url is null || Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out _))
-            .WithMessage("AvatarUrl must be a valid URL.")
+            .Must(url =>
+            {
+                if (url is null) return true;
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+                return uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp;
+            })
+            .WithMessage("AvatarUrl must be an absolute http or https URL.")
             .When(x => x.AvatarUrl is not null);
     }
 }

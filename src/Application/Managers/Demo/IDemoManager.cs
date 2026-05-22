@@ -5,5 +5,5 @@ namespace Identity.Application.Managers.Demo;
 
 public interface IDemoManager
 {
-    Task<Result<DemoStartDto>> StartDemoAsync(CancellationToken cancellationToken = default);
+    Task<Result<DemoStartDto>> StartDemoAsync(string captchaToken, CancellationToken cancellationToken = default);
 }

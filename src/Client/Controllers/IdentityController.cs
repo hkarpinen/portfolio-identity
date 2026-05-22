@@ -36,7 +36,7 @@ public sealed class IdentityController : ControllerBase
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> Register(RegisterCommand command)
+    public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
         var result = await _authManager.RegisterAsync(command);
         return result.IsSuccess

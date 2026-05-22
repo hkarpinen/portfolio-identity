@@ -13,21 +13,27 @@ internal sealed class AuthManager : IAuthManager
     private readonly IPasswordAuthenticationEngine _passwordEngine;
     private readonly IEmailGateway _emailGateway;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IRecaptchaService _recaptcha;
 
     public AuthManager(
         IUserRepository userRepository,
         IPasswordAuthenticationEngine passwordEngine,
         IEmailGateway emailGateway,
-        IJwtTokenGenerator jwtTokenGenerator)
+        IJwtTokenGenerator jwtTokenGenerator,
+        IRecaptchaService recaptcha)
     {
         _userRepository = userRepository;
         _passwordEngine = passwordEngine;
         _emailGateway = emailGateway;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _recaptcha = recaptcha;
     }
 
     public async Task<Result> RegisterAsync(RegisterCommand command)
     {
+        if (!await _recaptcha.VerifyAsync(command.CaptchaToken, "register"))
+            return Result.Failure("CAPTCHA verification failed. Please try again.");
+
         var email = Email.From(command.Email);
         var user = AppUser.Create(email, command.DisplayName);
 

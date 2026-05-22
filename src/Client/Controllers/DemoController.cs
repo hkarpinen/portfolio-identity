@@ -20,9 +20,9 @@ public sealed class DemoController : ControllerBase
     [HttpPost("start")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> Start(CancellationToken cancellationToken)
+    public async Task<IActionResult> Start([FromBody] DemoStartRequest request, CancellationToken cancellationToken)
     {
-        var result = await _demoManager.StartDemoAsync(cancellationToken);
+        var result = await _demoManager.StartDemoAsync(request.CaptchaToken, cancellationToken);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -40,3 +40,5 @@ public sealed class DemoController : ControllerBase
         return Ok(new { demoExpiresAt = dto.DemoExpiresAt });
     }
 }
+
+public sealed record DemoStartRequest(string CaptchaToken);

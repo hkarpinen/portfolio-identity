@@ -2,6 +2,7 @@ using Application.Ports;
 using Application.Queries;
 using Application.Repositories;
 using Domain.Aggregates.User;
+using Infrastructure.Services;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Queries;
@@ -56,6 +57,7 @@ public static class InfrastructureServiceExtensions
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.Configure<LocalFileStorageOptions>(configuration.GetSection("Storage"));
         services.Configure<EmailOptions>(configuration.GetSection("Email"));
+        services.Configure<RecaptchaOptions>(configuration.GetSection("Recaptcha"));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserQuery, UserQuery>();
@@ -63,6 +65,8 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IEmailGateway, SmtpEmailGateway>();
         services.AddScoped<IPasswordAuthenticationEngine, PasswordAuthenticationEngine>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
         services.AddHostedService<OutboxPublisher>();
         services.AddHostedService<DemoExpiryService>();

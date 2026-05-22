@@ -18,5 +18,9 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
         RuleFor(x => x.DisplayName)
             .NotEmpty()
             .MaximumLength(50);
+
+        RuleFor(x => x.CaptchaToken)
+            .NotEmpty()
+            .WithMessage("CAPTCHA token is required.");
     }
 }
