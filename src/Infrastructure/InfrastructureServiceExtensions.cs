@@ -2,7 +2,6 @@ using Application.Ports;
 using Application.Queries;
 using Application.Repositories;
 using Domain.Aggregates.User;
-using Infrastructure.Services;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Queries;
@@ -48,21 +47,23 @@ public static class InfrastructureServiceExtensions
                     h.Password(rabbitConfig["Password"]!);
                 });
 
-                cfg.Publish<Infrastructure.Messaging.Events.UserRegisteredEvent>(p => p.Durable = true);
-                cfg.Publish<Infrastructure.Messaging.Events.UserProfileUpdatedEvent>(p => p.Durable = true);
-                cfg.Publish<Infrastructure.Messaging.Events.UserBannedEvent>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.UserRegistered>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.UserProfileUpdated>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.UserBanned>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.UserRoleChanged>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.DemoUserCreated>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.DemoUserExpired>(p => p.Durable = true);
+                cfg.Publish<Domain.Events.UserEmailConfirmationRequested>(p => p.Durable = true);
             });
         });
 
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.Configure<LocalFileStorageOptions>(configuration.GetSection("Storage"));
-        services.Configure<EmailOptions>(configuration.GetSection("Email"));
         services.Configure<RecaptchaOptions>(configuration.GetSection("Recaptcha"));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserQuery, UserQuery>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
-        services.AddScoped<IEmailGateway, SmtpEmailGateway>();
         services.AddScoped<IPasswordAuthenticationEngine, PasswordAuthenticationEngine>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
 

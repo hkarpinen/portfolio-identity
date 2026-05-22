@@ -62,6 +62,35 @@ public sealed class IdentityController : ControllerBase
         return Ok(new { requiresTwoFactor = false });
     }
 
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordCommand command)
+    {
+        await _authManager.ForgotPasswordAsync(command);
+        return NoContent();
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordCommand command)
+    {
+        var result = await _authManager.ResetPasswordAsync(command);
+        return result.IsSuccess
+            ? NoContent()
+            : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("resend-confirmation")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ResendConfirmationEmail(ResendConfirmationEmailCommand command)
+    {
+        await _authManager.ResendConfirmationEmailAsync(command);
+        return NoContent();
+    }
+
     [HttpPost("confirm-email")]
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailCommand command)

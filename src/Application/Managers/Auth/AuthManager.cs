@@ -11,20 +11,17 @@ internal sealed class AuthManager : IAuthManager
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordAuthenticationEngine _passwordEngine;
-    private readonly IEmailGateway _emailGateway;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IRecaptchaService _recaptcha;
 
     public AuthManager(
         IUserRepository userRepository,
         IPasswordAuthenticationEngine passwordEngine,
-        IEmailGateway emailGateway,
         IJwtTokenGenerator jwtTokenGenerator,
         IRecaptchaService recaptcha)
     {
         _userRepository = userRepository;
         _passwordEngine = passwordEngine;
-        _emailGateway = emailGateway;
         _jwtTokenGenerator = jwtTokenGenerator;
         _recaptcha = recaptcha;
     }
@@ -43,7 +40,7 @@ internal sealed class AuthManager : IAuthManager
             return Result.Failure(error!);
 
         var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
-        await _emailGateway.SendConfirmationEmailAsync(user.Email!, user.Id.ToString(), token, user.DisplayName);
+        await _userRepository.QueueConfirmationEmailAsync(user, token);
 
         return Result.Success();
     }
@@ -71,6 +68,37 @@ internal sealed class AuthManager : IAuthManager
 
         var tokenResult = _jwtTokenGenerator.GenerateToken(user);
         return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt));
+    }
+
+    public async Task ForgotPasswordAsync(ForgotPasswordCommand command)
+    {
+        var user = await _userRepository.GetByEmailAsync(Email.From(command.Email));
+        if (user is null || !user.EmailConfirmed) return;
+
+        var token = await _userRepository.GeneratePasswordResetTokenAsync(user);
+        await _userRepository.QueuePasswordResetEmailAsync(user, token);
+    }
+
+    public async Task<Result> ResetPasswordAsync(ResetPasswordCommand command)
+    {
+        if (!Guid.TryParse(command.UserId, out var id))
+            return Result.Failure("Invalid reset link.");
+
+        var user = await _userRepository.GetByIdAsync(new UserId(id));
+        if (user is null)
+            return Result.Failure("Invalid reset link.");
+
+        var (succeeded, error) = await _userRepository.ResetPasswordAsync(user, command.Token, command.NewPassword);
+        return succeeded ? Result.Success() : Result.Failure(error!);
+    }
+
+    public async Task ResendConfirmationEmailAsync(ResendConfirmationEmailCommand command)
+    {
+        var user = await _userRepository.GetByEmailAsync(Email.From(command.Email));
+        if (user is null || user.EmailConfirmed) return;
+
+        var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
+        await _userRepository.QueueConfirmationEmailAsync(user, token);
     }
 
     public async Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command)

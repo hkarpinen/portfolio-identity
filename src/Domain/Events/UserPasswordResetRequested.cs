@@ -1,9 +1,9 @@
 namespace Domain.Events;
 
-public sealed record DemoUserCreated(
+public sealed record UserPasswordResetRequested(
     Guid Id,
     DateTime OccurredAt,
     Guid UserId,
     string Email,
     string DisplayName,
-    DateTime DemoExpiresAt) : IDomainEvent;
+    string ResetToken) : IDomainEvent;

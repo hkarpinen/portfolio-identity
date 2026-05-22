@@ -1,10 +1,8 @@
-using Domain.Aggregates.User;
-
 namespace Domain.Events;
 
 public sealed record UserProfileUpdated(
     Guid Id,
     DateTime OccurredAt,
-    UserId UserId,
+    Guid UserId,
     string DisplayName,
     string? AvatarUrl) : IDomainEvent;

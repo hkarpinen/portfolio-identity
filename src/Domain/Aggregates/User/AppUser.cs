@@ -39,7 +39,7 @@ public class AppUser : IdentityUser<Guid>
         user._domainEvents.Add(new UserRegistered(
             Guid.NewGuid(),
             now,
-            userId,
+            userId.Value,
             email.Value,
             displayName));
 
@@ -54,7 +54,7 @@ public class AppUser : IdentityUser<Guid>
         _domainEvents.Add(new UserProfileUpdated(
             Guid.NewGuid(),
             DateTime.UtcNow,
-            new UserId(Id),
+            Id,
             displayName,
             avatarUrl));
     }
@@ -66,7 +66,7 @@ public class AppUser : IdentityUser<Guid>
         _domainEvents.Add(new UserProfileUpdated(
             Guid.NewGuid(),
             DateTime.UtcNow,
-            new UserId(Id),
+            Id,
             DisplayName,
             avatarUrl));
     }
@@ -80,7 +80,7 @@ public class AppUser : IdentityUser<Guid>
         _domainEvents.Add(new UserBanned(
             Guid.NewGuid(),
             now,
-            new UserId(Id),
+            Id,
             now));
     }
 
@@ -91,8 +91,8 @@ public class AppUser : IdentityUser<Guid>
         _domainEvents.Add(new UserRoleChanged(
             Guid.NewGuid(),
             DateTime.UtcNow,
-            new UserId(Id),
-            newRole));
+            Id,
+            newRole.ToString()));
     }
 
     public static AppUser CreateDemo(string displayName)
@@ -118,7 +118,7 @@ public class AppUser : IdentityUser<Guid>
         user._domainEvents.Add(new DemoUserCreated(
             Guid.NewGuid(),
             now,
-            userId,
+            userId.Value,
             email,
             displayName,
             expiresAt));
@@ -133,6 +133,6 @@ public class AppUser : IdentityUser<Guid>
         _domainEvents.Add(new DemoUserExpired(
             Guid.NewGuid(),
             DemoExpiredAt.Value,
-            new UserId(Id)));
+            Id));
     }
 }

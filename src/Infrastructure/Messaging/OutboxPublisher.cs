@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Domain.Events;
-using Infrastructure.Messaging.Events;
 using Infrastructure.Persistence;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -15,17 +14,18 @@ internal sealed class OutboxPublisher : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxPublisher> _logger;
 
-    // Keys match IDomainEvent type names stored by OutboxExtensions.AddToOutbox.
     private static readonly Dictionary<string, Type> EventTypeMap = new()
     {
-        [nameof(UserRegistered)]      = typeof(UserRegisteredEvent),
-        [nameof(UserProfileUpdated)]  = typeof(UserProfileUpdatedEvent),
-        [nameof(UserBanned)]          = typeof(UserBannedEvent),
-        [nameof(DemoUserCreated)]     = typeof(DemoUserCreatedEvent),
-        [nameof(DemoUserExpired)]     = typeof(DemoUserExpiredEvent),
+        [nameof(UserRegistered)]                    = typeof(UserRegistered),
+        [nameof(UserProfileUpdated)]                = typeof(UserProfileUpdated),
+        [nameof(UserBanned)]                        = typeof(UserBanned),
+        [nameof(UserRoleChanged)]                   = typeof(UserRoleChanged),
+        [nameof(DemoUserCreated)]                   = typeof(DemoUserCreated),
+        [nameof(DemoUserExpired)]                   = typeof(DemoUserExpired),
+        [nameof(UserEmailConfirmationRequested)]    = typeof(UserEmailConfirmationRequested),
+        [nameof(UserPasswordResetRequested)]        = typeof(UserPasswordResetRequested),
     };
 
-    // Must match OutboxExtensions.JsonOptions so Deserialize succeeds.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -60,15 +60,8 @@ internal sealed class OutboxPublisher : BackgroundService
         var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
 
-        // Begin an explicit transaction so that FOR UPDATE SKIP LOCKED holds row
-        // locks until SaveChangesAsync + CommitAsync. Without a transaction the
-        // lock is released immediately, which would not prevent a second replica
-        // from selecting the same rows in a concurrent poll cycle.
         using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        // FOR UPDATE SKIP LOCKED ensures that when identity is scaled to 2+
-        // replicas each instance claims a disjoint set of rows, preventing
-        // duplicate sends without requiring a distributed lock.
         var messages = await dbContext.OutboxMessages
             .FromSqlRaw("""
                 SELECT * FROM identity.outbox_messages
@@ -112,8 +105,6 @@ internal sealed class OutboxPublisher : BackgroundService
             }
             catch (Exception ex)
             {
-                // Poison-message handling: increment retry count, dead-letter once max exceeded.
-                // Crucially we do NOT break — one bad message must not block the queue.
                 message.RetryCount++;
                 message.LastError = ex.Message.Length > 2048 ? ex.Message[..2048] : ex.Message;
                 message.LastAttemptAt = DateTime.UtcNow;

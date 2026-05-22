@@ -55,9 +55,32 @@ internal sealed class UserRepository : IUserRepository
     public Task<string> GenerateEmailConfirmationTokenAsync(AppUser user, CancellationToken cancellationToken = default)
         => _userManager.GenerateEmailConfirmationTokenAsync(user);
 
+    public async Task QueueConfirmationEmailAsync(AppUser user, string token, CancellationToken cancellationToken = default)
+    {
+        _dbContext.AddToOutbox(new Domain.Events.UserEmailConfirmationRequested(
+            Guid.NewGuid(), DateTime.UtcNow, user.Id, user.Email!, user.DisplayName, token));
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<(bool Succeeded, string? Error)> ConfirmEmailAsync(AppUser user, string token, CancellationToken cancellationToken = default)
     {
         var result = await _userManager.ConfirmEmailAsync(user, token);
+        return (result.Succeeded, result.Succeeded ? null : Describe(result));
+    }
+
+    public Task<string> GeneratePasswordResetTokenAsync(AppUser user, CancellationToken cancellationToken = default)
+        => _userManager.GeneratePasswordResetTokenAsync(user);
+
+    public async Task QueuePasswordResetEmailAsync(AppUser user, string token, CancellationToken cancellationToken = default)
+    {
+        _dbContext.AddToOutbox(new Domain.Events.UserPasswordResetRequested(
+            Guid.NewGuid(), DateTime.UtcNow, user.Id, user.Email!, user.DisplayName, token));
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<(bool Succeeded, string? Error)> ResetPasswordAsync(AppUser user, string token, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
         return (result.Succeeded, result.Succeeded ? null : Describe(result));
     }
 
