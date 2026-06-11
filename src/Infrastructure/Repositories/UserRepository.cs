@@ -93,9 +93,6 @@ internal sealed class UserRepository : IUserRepository
     public Task<bool> VerifyTwoFactorTokenAsync(AppUser user, string code, CancellationToken cancellationToken = default)
         => _userManager.VerifyTwoFactorTokenAsync(user, _userManager.Options.Tokens.AuthenticatorTokenProvider, code);
 
-    public Task SetTwoFactorEnabledAsync(AppUser user, bool enabled, CancellationToken cancellationToken = default)
-        => _userManager.SetTwoFactorEnabledAsync(user, enabled);
-
     public async Task<(bool Succeeded, string? Error)> UpdateAsync(AppUser user, CancellationToken cancellationToken = default)
     {
         var result = await _userManager.UpdateAsync(user);
@@ -107,6 +104,11 @@ internal sealed class UserRepository : IUserRepository
             .Where(u => u.IsDemo && u.DemoExpiresAt < DateTime.UtcNow && u.DemoExpiredAt == null)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<string>> GenerateRecoveryCodesAsync(AppUser user, int count = 10, CancellationToken cancellationToken = default)
+    {
+        var codes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, count);
+        return codes?.ToList().AsReadOnly() ?? (IReadOnlyList<string>)Array.Empty<string>();
+    }
     public async Task<(bool Succeeded, string? Error)> CreateDemoAsync(AppUser user, CancellationToken cancellationToken = default)
     {
         var result = await _userManager.CreateAsync(user);

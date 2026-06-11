@@ -183,6 +183,35 @@ public class AppUserTests
         Assert.Single(user.DomainEvents);
         Assert.IsType<UserAccountDeleted>(user.DomainEvents[0]);
     }
+
+    [Fact]
+    public void MarkTwoFactorEnabled_ShouldSetFlagAndTimestampTogether()
+    {
+        // Arrange
+        var user = AppUser.Create(Email.From("user@example.com"), "User");
+
+        // Act
+        user.MarkTwoFactorEnabled();
+
+        // Assert
+        Assert.True(user.TwoFactorEnabled);
+        Assert.NotNull(user.TwoFactorEnabledAt);
+    }
+
+    [Fact]
+    public void MarkTwoFactorDisabled_ShouldClearFlagAndTimestampTogether()
+    {
+        // Arrange
+        var user = AppUser.Create(Email.From("user@example.com"), "User");
+        user.MarkTwoFactorEnabled();
+
+        // Act
+        user.MarkTwoFactorDisabled();
+
+        // Assert
+        Assert.False(user.TwoFactorEnabled);
+        Assert.Null(user.TwoFactorEnabledAt);
+    }
     [Fact]
     public void Email_From_InvalidFormat_ShouldThrow()
     {

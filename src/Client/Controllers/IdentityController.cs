@@ -119,10 +119,33 @@ public sealed class IdentityController : ControllerBase
     {
         var result = await _twoFactorManager.VerifyTwoFactorAsync(command);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error });
+            return Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
 
         SetAccessTokenCookie(result.Value!.Token!, result.Value.ExpiresAt!.Value);
         return Ok();
+    }
+
+    [HttpPost("2fa/disable")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> DisableTwoFactor([FromBody] DisableTwoFactorCommand command)
+    {
+        var userId = User.GetUserId();
+        var result = await _twoFactorManager.DisableTwoFactorAsync(userId, command);
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    [HttpGet("2fa/recovery-codes")]
+    [Authorize]
+    public async Task<IActionResult> GetRecoveryCodes()
+    {
+        var userId = User.GetUserId();
+        var result = await _twoFactorManager.GenerateRecoveryCodesAsync(userId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpGet("me")]
@@ -174,14 +197,18 @@ public sealed class IdentityController : ControllerBase
         return NoContent();
     }
 
-    private void SetAccessTokenCookie(string token, DateTimeOffset expiresAt)
+    private void SetAccessTokenCookie(string token, DateTime expiresAtUtc)
     {
+        var expires = expiresAtUtc.Kind == DateTimeKind.Utc
+            ? new DateTimeOffset(expiresAtUtc, TimeSpan.Zero)
+            : new DateTimeOffset(DateTime.SpecifyKind(expiresAtUtc, DateTimeKind.Utc), TimeSpan.Zero);
+
         Response.Cookies.Append("access_token", token, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.Strict,
-            Expires = expiresAt
+            Expires = expires
         });
     }
 }

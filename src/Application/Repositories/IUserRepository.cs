@@ -18,7 +18,7 @@ public interface IUserRepository
     Task ResetAuthenticatorKeyAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<string?> GetAuthenticatorKeyAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<bool> VerifyTwoFactorTokenAsync(AppUser user, string code, CancellationToken cancellationToken = default);
-    Task SetTwoFactorEnabledAsync(AppUser user, bool enabled, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> UpdateAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AppUser>> GetExpiredDemoUsersAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GenerateRecoveryCodesAsync(AppUser user, int count = 10, CancellationToken cancellationToken = default);
 }

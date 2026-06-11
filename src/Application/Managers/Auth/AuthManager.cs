@@ -67,7 +67,7 @@ internal sealed class AuthManager : IAuthManager
             return Result<LoginDto>.Success(new LoginDto(RequiresTwoFactor: true, Token: null));
 
         var tokenResult = _jwtTokenGenerator.GenerateToken(user);
-        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt));
+        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime));
     }
 
     public async Task ForgotPasswordAsync(ForgotPasswordCommand command)

@@ -48,10 +48,45 @@ internal sealed class TwoFactorManager : ITwoFactorManager
             return Result<LoginDto>.Failure("Invalid verification code.");
 
         if (!user.TwoFactorEnabled)
-            await _userRepository.SetTwoFactorEnabledAsync(user, true);
+        {
+            // Flag + timestamp are set together on the aggregate and persisted in one write
+            // so TwoFactorEnabled and TwoFactorEnabledAt can never diverge.
+            user.MarkTwoFactorEnabled();
+            await _userRepository.SaveAsync(user);
+        }
 
         var tokenResult = _jwtTokenGenerator.GenerateToken(user);
-        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt));
+        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime));
+    }
+
+    public async Task<Result> DisableTwoFactorAsync(Guid userId, DisableTwoFactorCommand command)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null) return Result.Failure("User not found.");
+
+        if (!user.TwoFactorEnabled)
+            return Result.Failure("Two-factor authentication is not currently enabled.");
+
+        if (!await _userRepository.VerifyTwoFactorTokenAsync(user, command.CurrentCode))
+            return Result.Failure("Invalid verification code.");
+
+        // Flag + timestamp cleared together on the aggregate and persisted in one write.
+        user.MarkTwoFactorDisabled();
+        await _userRepository.SaveAsync(user);
+        return Result.Success();
+    }
+
+    public async Task<Result<TwoFactorRecoveryCodesDto>> GenerateRecoveryCodesAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null)
+            return Result<TwoFactorRecoveryCodesDto>.Failure("User not found.");
+
+        if (!user.TwoFactorEnabled)
+            return Result<TwoFactorRecoveryCodesDto>.Failure("Two-factor authentication must be enabled before generating recovery codes.");
+
+        var codes = await _userRepository.GenerateRecoveryCodesAsync(user);
+        return Result<TwoFactorRecoveryCodesDto>.Success(new TwoFactorRecoveryCodesDto(codes));
     }
 
     private static string GenerateAuthenticatorUri(string email, string key)
