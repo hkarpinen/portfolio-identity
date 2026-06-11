@@ -1,3 +1,4 @@
+using Domain.Aggregates.Contact;
 using Domain.Aggregates.User;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -9,6 +10,7 @@ public sealed class IdentityDbContext
     : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
 {
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
 
     public IdentityDbContext(DbContextOptions<IdentityDbContext> options)
         : base(options) { }

@@ -62,6 +62,7 @@ public static class InfrastructureServiceExtensions
         services.Configure<RecaptchaOptions>(configuration.GetSection("Recaptcha"));
 
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IContactMessageRepository, ContactMessageRepository>();
         services.AddScoped<IUserQuery, UserQuery>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IPasswordAuthenticationEngine, PasswordAuthenticationEngine>();

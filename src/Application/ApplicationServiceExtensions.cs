@@ -1,5 +1,6 @@
 using Identity.Application.Managers.Admin;
 using Identity.Application.Managers.Auth;
+using Identity.Application.Managers.Contact;
 using Identity.Application.Managers.Demo;
 using Identity.Application.Managers.Profile;
 using Identity.Application.Managers.TwoFactor;
@@ -17,6 +18,7 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IAdminManager, AdminManager>();
         services.AddScoped<IDemoManager, DemoManager>();
         services.AddScoped<IDemoExpiryManager, DemoExpiryManager>();
+        services.AddScoped<IContactManager, ContactManager>();
         return services;
     }
 }

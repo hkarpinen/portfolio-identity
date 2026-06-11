@@ -25,6 +25,7 @@ internal sealed class OutboxPublisher : BackgroundService
         [nameof(DemoUserExpired)]                   = typeof(DemoUserExpired),
         [nameof(UserEmailConfirmationRequested)]    = typeof(UserEmailConfirmationRequested),
         [nameof(UserPasswordResetRequested)]        = typeof(UserPasswordResetRequested),
+        [nameof(ContactMessageReceived)]            = typeof(ContactMessageReceived),
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new()

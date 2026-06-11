@@ -8,6 +8,12 @@ public sealed record TwoFactorRecoveryCodesDto(IReadOnlyList<string> Codes);
 public sealed record OAuthConnectionDto(string Provider, bool Connected, string? Handle);
 public sealed record ConnectionsResponseDto(OAuthConnectionDto Github, OAuthConnectionDto Google);
 public sealed record AdminUserListDto(IReadOnlyList<AdminUserDto> Items, int TotalCount);
+public sealed record ContactMessageDto(
+    string Name,
+    string Email,
+    string Subject,
+    string Message,
+    string CaptchaToken);
 public sealed record UserProfileDto(
     Guid Id,
     string Email,
