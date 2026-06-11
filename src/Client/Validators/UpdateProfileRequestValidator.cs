@@ -21,5 +21,13 @@ public sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProf
             })
             .WithMessage("AvatarUrl must be an absolute http or https URL.")
             .When(x => x.AvatarUrl is not null);
+        RuleFor(x => x.Handle)
+            .MaximumLength(40)
+            .Matches("^[a-zA-Z0-9_]+$")
+            .When(x => !string.IsNullOrEmpty(x.Handle))
+            .WithMessage("Handle may only contain letters, numbers, and underscores.");
+        RuleFor(x => x.Bio).MaximumLength(500).When(x => x.Bio is not null);
+        RuleFor(x => x.Location).MaximumLength(100).When(x => x.Location is not null);
+        RuleFor(x => x.Pronouns).MaximumLength(40).When(x => x.Pronouns is not null);
     }
 }

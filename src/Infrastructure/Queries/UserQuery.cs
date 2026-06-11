@@ -29,9 +29,14 @@ internal sealed class UserQuery : IUserQuery
             user.Email!,
             user.DisplayName,
             user.AvatarUrl,
+            user.Handle,
+            user.Bio,
+            user.Location,
+            user.Pronouns,
             user.Role.ToString(),
             user.EmailConfirmed,
             user.TwoFactorEnabled,
+            user.TwoFactorEnabledAt,
             user.CreatedAt);
     }
 

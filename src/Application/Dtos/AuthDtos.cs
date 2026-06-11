@@ -9,9 +9,14 @@ public sealed record UserProfileDto(
     string Email,
     string DisplayName,
     string? AvatarUrl,
+    string? Handle,
+    string? Bio,
+    string? Location,
+    string? Pronouns,
     string Role,
     bool IsEmailConfirmed,
     bool TwoFactorEnabled,
+    DateTime? TwoFactorEnabledAt,
     DateTime CreatedAt);
 
 public sealed record AdminUserDto(

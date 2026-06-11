@@ -17,6 +17,24 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         builder.Property(u => u.AvatarUrl)
             .HasMaxLength(500);
 
+        builder.Property(u => u.Handle)
+            .HasMaxLength(40);
+
+        // Filter uses the snake-cased column name produced by UseSnakeCaseNamingConvention()
+        // — `"Handle"` (quoted, case-sensitive) would not resolve since the column is `handle`.
+        builder.HasIndex(u => u.Handle).IsUnique().HasFilter("handle IS NOT NULL");
+
+        builder.Property(u => u.Bio)
+            .HasMaxLength(500);
+
+        builder.Property(u => u.Location)
+            .HasMaxLength(100);
+
+        builder.Property(u => u.Pronouns)
+            .HasMaxLength(40);
+
+        builder.Property(u => u.TwoFactorEnabledAt);
+
         builder.Property(u => u.Role)
             .HasConversion<string>()
             .IsRequired();

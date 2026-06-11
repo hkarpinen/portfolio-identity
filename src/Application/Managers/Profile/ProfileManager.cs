@@ -52,7 +52,13 @@ internal sealed class ProfileManager : IProfileManager
         if (user is null)
             return Result.Failure("User not found.");
 
-        user.UpdateProfile(command.DisplayName, command.AvatarUrl);
+        user.UpdateProfile(
+            command.DisplayName,
+            command.AvatarUrl,
+            command.Handle,
+            command.Bio,
+            command.Location,
+            command.Pronouns);
 
         await _userRepository.SaveAsync(user);
         return Result.Success();

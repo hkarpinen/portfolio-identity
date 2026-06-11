@@ -9,8 +9,14 @@ public class AppUser : IdentityUser<Guid>
 
     public string DisplayName { get; private set; } = string.Empty;
     public string? AvatarUrl { get; private set; }
+    public string? Handle { get; private set; }
+    public string? Bio { get; private set; }
+    public string? Location { get; private set; }
+    public string? Pronouns { get; private set; }
     public UserRole Role { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public DateTime? TwoFactorEnabledAt { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
     public bool IsDemo { get; private set; }
     public DateTime? DemoExpiresAt { get; private set; }
     public DateTime? DemoExpiredAt { get; private set; }
@@ -46,10 +52,20 @@ public class AppUser : IdentityUser<Guid>
         return user;
     }
 
-    public void UpdateProfile(string displayName, string? avatarUrl)
+    public void UpdateProfile(
+        string displayName,
+        string? avatarUrl,
+        string? handle = null,
+        string? bio = null,
+        string? location = null,
+        string? pronouns = null)
     {
         DisplayName = displayName;
         AvatarUrl = avatarUrl;
+        Handle = handle;
+        Bio = bio;
+        Location = location;
+        Pronouns = pronouns;
 
         _domainEvents.Add(new UserProfileUpdated(
             Guid.NewGuid(),
