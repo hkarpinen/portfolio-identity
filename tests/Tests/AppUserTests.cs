@@ -212,6 +212,25 @@ public class AppUserTests
         Assert.False(user.TwoFactorEnabled);
         Assert.Null(user.TwoFactorEnabledAt);
     }
+
+    [Fact]
+    public void RequestEmailReverification_ShouldUnconfirmAndRaiseEvent()
+    {
+        // Arrange
+        var user = AppUser.Create(Email.From("user@example.com"), "User");
+        user.EmailConfirmed = true;
+        user.ClearDomainEvents();
+
+        // Act
+        user.RequestEmailReverification("confirm-token");
+
+        // Assert
+        Assert.False(user.EmailConfirmed);
+        Assert.Single(user.DomainEvents);
+        var evt = Assert.IsType<UserEmailConfirmationRequested>(user.DomainEvents[0]);
+        Assert.Equal("confirm-token", evt.ConfirmationToken);
+    }
+
     [Fact]
     public void Email_From_InvalidFormat_ShouldThrow()
     {

@@ -20,5 +20,10 @@ public interface IUserRepository
     Task<bool> VerifyTwoFactorTokenAsync(AppUser user, string code, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> UpdateAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AppUser>> GetExpiredDemoUsersAsync(CancellationToken cancellationToken = default);
+    Task<bool> CheckPasswordAsync(AppUser user, string password, CancellationToken cancellationToken = default);
+    Task<(bool Succeeded, string? Error)> ChangeEmailAsync(AppUser user, string newEmail, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GenerateRecoveryCodesAsync(AppUser user, int count = 10, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<(string Provider, string ProviderKey)>> GetExternalLoginsAsync(AppUser user, CancellationToken cancellationToken = default);
+    Task<(bool Succeeded, string? Error)> RemoveExternalLoginAsync(AppUser user, string provider, CancellationToken cancellationToken = default);
+    Task<int> CountPasswordsAndLoginsAsync(AppUser user, CancellationToken cancellationToken = default);
 }

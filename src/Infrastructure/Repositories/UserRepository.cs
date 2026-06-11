@@ -104,11 +104,56 @@ internal sealed class UserRepository : IUserRepository
             .Where(u => u.IsDemo && u.DemoExpiresAt < DateTime.UtcNow && u.DemoExpiredAt == null)
             .ToListAsync(cancellationToken);
 
+    public Task<bool> CheckPasswordAsync(AppUser user, string password, CancellationToken cancellationToken = default)
+        => _userManager.CheckPasswordAsync(user, password);
+
     public async Task<IReadOnlyList<string>> GenerateRecoveryCodesAsync(AppUser user, int count = 10, CancellationToken cancellationToken = default)
     {
         var codes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, count);
         return codes?.ToList().AsReadOnly() ?? (IReadOnlyList<string>)Array.Empty<string>();
     }
+
+    public async Task<IReadOnlyList<(string Provider, string ProviderKey)>> GetExternalLoginsAsync(AppUser user, CancellationToken cancellationToken = default)
+    {
+        var logins = await _userManager.GetLoginsAsync(user);
+        return logins.Select(l => (l.LoginProvider, l.ProviderKey)).ToList().AsReadOnly();
+    }
+
+    public async Task<(bool Succeeded, string? Error)> RemoveExternalLoginAsync(AppUser user, string provider, CancellationToken cancellationToken = default)
+    {
+        var logins = await _userManager.GetLoginsAsync(user);
+        var match = logins.FirstOrDefault(l => string.Equals(l.LoginProvider, provider, StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+            return (false, $"No {provider} connection found.");
+
+        var result = await _userManager.RemoveLoginAsync(user, match.LoginProvider, match.ProviderKey);
+        return (result.Succeeded, result.Succeeded ? null : Describe(result));
+    }
+
+    public async Task<int> CountPasswordsAndLoginsAsync(AppUser user, CancellationToken cancellationToken = default)
+    {
+        var loginCount = (await _userManager.GetLoginsAsync(user)).Count;
+        var hasPassword = await _userManager.HasPasswordAsync(user) ? 1 : 0;
+        return loginCount + hasPassword;
+    }
+
+    public async Task<(bool Succeeded, string? Error)> ChangeEmailAsync(AppUser user, string newEmail, CancellationToken cancellationToken = default)
+    {
+        // Pure Identity I/O: swap the email and keep the username aligned with it.
+        // The re-verification rule and confirmation event live in the domain/application layers.
+        var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+        var result = await _userManager.ChangeEmailAsync(user, newEmail, token);
+        if (!result.Succeeded)
+            return (false, Describe(result));
+
+        // Username typically mirrors email; keep them aligned
+        var unameResult = await _userManager.SetUserNameAsync(user, newEmail);
+        if (!unameResult.Succeeded)
+            return (false, Describe(unameResult));
+
+        return (true, null);
+    }
+
     public async Task<(bool Succeeded, string? Error)> CreateDemoAsync(AppUser user, CancellationToken cancellationToken = default)
     {
         var result = await _userManager.CreateAsync(user);

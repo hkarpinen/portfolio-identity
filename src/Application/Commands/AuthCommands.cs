@@ -15,5 +15,7 @@ public sealed record UpdateProfileCommand(
     string? Location = null,
     string? Pronouns = null);
 public sealed record UploadAvatarCommand(Stream Content, string ContentType, long Length);
+public sealed record ChangeEmailCommand(string NewEmail, string CurrentPassword);
 public sealed record DisableTwoFactorCommand(string CurrentCode);
 public sealed record DeleteAccountCommand(string ConfirmationDisplayName);
+public sealed record DisconnectOAuthCommand(string Provider);

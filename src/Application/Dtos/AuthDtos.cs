@@ -5,6 +5,8 @@ public sealed record UploadAvatarDto(string AvatarUrl);
 public sealed record TwoFactorSetupDto(string SharedKey, string AuthenticatorUri);
 
 public sealed record TwoFactorRecoveryCodesDto(IReadOnlyList<string> Codes);
+public sealed record OAuthConnectionDto(string Provider, bool Connected, string? Handle);
+public sealed record ConnectionsResponseDto(OAuthConnectionDto Github, OAuthConnectionDto Google);
 public sealed record AdminUserListDto(IReadOnlyList<AdminUserDto> Items, int TotalCount);
 public sealed record UserProfileDto(
     Guid Id,

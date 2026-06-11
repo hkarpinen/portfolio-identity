@@ -136,6 +136,25 @@ public class AppUser : IdentityUser<Guid>
             avatarUrl));
     }
 
+    /// <summary>
+    /// Marks the (already-changed) email address as unverified and requests a fresh confirmation.
+    /// Forcing re-verification on email change is a domain rule, so the aggregate owns both the
+    /// EmailConfirmed reset and the UserEmailConfirmationRequested event. The caller supplies the
+    /// confirmation token because token generation is an Identity I/O concern handled by the repo.
+    /// </summary>
+    public void RequestEmailReverification(string confirmationToken)
+    {
+        EmailConfirmed = false;
+
+        _domainEvents.Add(new UserEmailConfirmationRequested(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            Id,
+            Email!,
+            DisplayName,
+            confirmationToken));
+    }
+
     public void Ban()
     {
         var now = DateTime.UtcNow;

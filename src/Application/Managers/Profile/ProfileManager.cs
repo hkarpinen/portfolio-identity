@@ -100,6 +100,40 @@ internal sealed class ProfileManager : IProfileManager
         return Result<UploadAvatarDto>.Success(new UploadAvatarDto(avatarUrl));
     }
 
+    public async Task<Result> ChangeEmailAsync(Guid userId, ChangeEmailCommand command)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null)
+            return Result.Failure("User not found.");
+
+        if (!await _userRepository.CheckPasswordAsync(user, command.CurrentPassword))
+            return Result.Failure("Current password is incorrect.");
+
+        Email parsedEmail;
+        try { parsedEmail = Email.From(command.NewEmail); }
+        catch (ArgumentException ex) { return Result.Failure(ex.Message); }
+
+        if (string.Equals(user.Email, parsedEmail.Value, StringComparison.OrdinalIgnoreCase))
+            return Result.Failure("New email matches the current email.");
+
+        var existing = await _userRepository.GetByEmailAsync(parsedEmail);
+        if (existing is not null && existing.Id != user.Id)
+            return Result.Failure("That email address is already in use.");
+
+        var (succeeded, error) = await _userRepository.ChangeEmailAsync(user, parsedEmail.Value);
+        if (!succeeded)
+            return Result.Failure(error!);
+
+        // Changing the email forces re-verification: generate a confirmation token (Identity I/O),
+        // then let the aggregate reset EmailConfirmed and raise UserEmailConfirmationRequested.
+        // SaveAsync drains that event into the outbox so the confirmation email is dispatched.
+        var confirmationToken = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
+        user.RequestEmailReverification(confirmationToken);
+        await _userRepository.SaveAsync(user);
+
+        return Result.Success();
+    }
+
     public async Task<Result> DeleteAccountAsync(Guid userId, DeleteAccountCommand command)
     {
         var user = await _userRepository.GetByIdAsync(new UserId(userId));
@@ -113,4 +147,35 @@ internal sealed class ProfileManager : IProfileManager
         return Result.Success();
     }
 
+    public async Task<Result<ConnectionsResponseDto>> GetConnectionsAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null)
+            return Result<ConnectionsResponseDto>.Failure("User not found.");
+
+        var logins = await _userRepository.GetExternalLoginsAsync(user);
+        OAuthConnectionDto githubDto = Build(logins, "GitHub");
+        OAuthConnectionDto googleDto = Build(logins, "Google");
+        return Result<ConnectionsResponseDto>.Success(new ConnectionsResponseDto(githubDto, googleDto));
+
+        static OAuthConnectionDto Build(IReadOnlyList<(string Provider, string ProviderKey)> logins, string provider)
+        {
+            var match = logins.FirstOrDefault(l => string.Equals(l.Provider, provider, StringComparison.OrdinalIgnoreCase));
+            return new OAuthConnectionDto(provider, match != default, match == default ? null : match.ProviderKey);
+        }
+    }
+
+    public async Task<Result> DisconnectOAuthAsync(Guid userId, DisconnectOAuthCommand command)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null) return Result.Failure("User not found.");
+
+        // Refuse to disconnect the only login method the user has.
+        var totalLogins = await _userRepository.CountPasswordsAndLoginsAsync(user);
+        if (totalLogins <= 1)
+            return Result.Failure("Cannot disconnect your only sign-in method. Set a password first.");
+
+        var (succeeded, error) = await _userRepository.RemoveExternalLoginAsync(user, command.Provider);
+        return succeeded ? Result.Success() : Result.Failure(error!);
+    }
 }

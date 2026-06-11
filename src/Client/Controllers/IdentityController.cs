@@ -189,6 +189,55 @@ public sealed class IdentityController : ControllerBase
             : BadRequest(new { error = result.Error });
     }
 
+    [HttpPut("email")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailCommand command)
+    {
+        var userId = User.GetUserId();
+        var result = await _profileManager.ChangeEmailAsync(userId, command);
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    [HttpDelete("me")]
+    [Authorize]
+    [EnableRateLimiting("write")]
+    public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountCommand command)
+    {
+        var userId = User.GetUserId();
+        var result = await _profileManager.DeleteAccountAsync(userId, command);
+        if (!result.IsSuccess)
+            return Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+
+        Response.Cookies.Delete("access_token");
+        return NoContent();
+    }
+
+    [HttpGet("connections")]
+    [Authorize]
+    public async Task<IActionResult> GetConnections()
+    {
+        var userId = User.GetUserId();
+        var result = await _profileManager.GetConnectionsAsync(userId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    [HttpDelete("connections/{provider}")]
+    [Authorize]
+    [EnableRateLimiting("write")]
+    public async Task<IActionResult> DisconnectOAuth([FromRoute] string provider)
+    {
+        var userId = User.GetUserId();
+        var result = await _profileManager.DisconnectOAuthAsync(userId, new DisconnectOAuthCommand(provider));
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
     [HttpPost("logout")]
     [Authorize]
     public IActionResult Logout()
