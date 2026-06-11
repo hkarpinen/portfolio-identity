@@ -1,3 +1,4 @@
+using Application.Dtos;
 using Identity.Application.Managers.Demo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,11 +21,11 @@ public sealed class DemoController : ControllerBase
     [HttpPost("start")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> Start([FromBody] DemoStartRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Start([FromBody] DemoStartRequestDto request, CancellationToken cancellationToken)
     {
         var result = await _demoManager.StartDemoAsync(request.CaptchaToken, cancellationToken);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error });
+            return Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
 
         var dto = result.Value!;
         var expiresAt = new DateTimeOffset(dto.DemoExpiresAt, TimeSpan.Zero);
@@ -40,5 +41,3 @@ public sealed class DemoController : ControllerBase
         return Ok(new { demoExpiresAt = dto.DemoExpiresAt });
     }
 }
-
-public sealed record DemoStartRequest(string CaptchaToken);

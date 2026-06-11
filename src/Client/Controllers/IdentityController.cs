@@ -41,7 +41,7 @@ public sealed class IdentityController : ControllerBase
         var result = await _authManager.RegisterAsync(command);
         return result.IsSuccess
             ? StatusCode(StatusCodes.Status201Created)
-            : BadRequest(new { error = result.Error });
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPost("login")]
@@ -51,7 +51,7 @@ public sealed class IdentityController : ControllerBase
     {
         var result = await _authManager.LoginAsync(command);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error });
+            return Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
 
         var loginResult = result.Value!;
 
@@ -79,7 +79,7 @@ public sealed class IdentityController : ControllerBase
         var result = await _authManager.ResetPasswordAsync(command);
         return result.IsSuccess
             ? NoContent()
-            : BadRequest(new { error = result.Error });
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPost("resend-confirmation")]
@@ -98,7 +98,7 @@ public sealed class IdentityController : ControllerBase
         var result = await _authManager.ConfirmEmailAsync(command);
         return result.IsSuccess
             ? Ok()
-            : BadRequest(new { error = result.Error });
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPost("2fa/enable")]
@@ -109,7 +109,7 @@ public sealed class IdentityController : ControllerBase
         var result = await _twoFactorManager.EnableTwoFactorAsync(userId);
         return result.IsSuccess
             ? Ok(result.Value)
-            : BadRequest(new { error = result.Error });
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPost("2fa/verify")]
@@ -156,7 +156,7 @@ public sealed class IdentityController : ControllerBase
         var result = await _query.GetProfileAsync(userId);
         return result is not null
             ? Ok(result)
-            : NotFound(new { error = "User not found." });
+            : Problem(detail: "User not found.", statusCode: StatusCodes.Status404NotFound);
     }
 
     [HttpPut("me")]
@@ -167,7 +167,7 @@ public sealed class IdentityController : ControllerBase
         var result = await _profileManager.UpdateProfileAsync(userId, command);
         return result.IsSuccess
             ? NoContent()
-            : BadRequest(new { error = result.Error });
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPost("me/avatar")]
@@ -176,7 +176,7 @@ public sealed class IdentityController : ControllerBase
     public async Task<IActionResult> UploadAvatar(IFormFile file)
     {
         if (file is null || file.Length == 0)
-            return BadRequest(new { error = "File is required." });
+            return Problem(detail: "File is required.", statusCode: StatusCodes.Status400BadRequest);
 
         var userId = User.GetUserId();
 
@@ -186,7 +186,7 @@ public sealed class IdentityController : ControllerBase
 
         return result.IsSuccess
             ? Ok(result.Value)
-            : BadRequest(new { error = result.Error });
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPut("email")]
@@ -237,6 +237,30 @@ public sealed class IdentityController : ControllerBase
             ? NoContent()
             : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
+
+    // Session management requires a refresh-token / session store that is not wired up in this
+    // service (auth is a single stateless access-token cookie). Rather than return fabricated
+    // session data or no-op "revokes" that falsely report success, these endpoints honestly
+    // report 501 Not Implemented until a session store exists.
+    private const string SessionsNotImplemented =
+        "Session management is not available: this service does not maintain a session store.";
+
+    [HttpGet("sessions")]
+    [Authorize]
+    public IActionResult ListSessions()
+        => Problem(detail: SessionsNotImplemented, statusCode: StatusCodes.Status501NotImplemented);
+
+    [HttpPost("sessions/{sessionId:guid}/revoke")]
+    [Authorize]
+    [EnableRateLimiting("write")]
+    public IActionResult RevokeSession([FromRoute] Guid sessionId)
+        => Problem(detail: SessionsNotImplemented, statusCode: StatusCodes.Status501NotImplemented);
+
+    [HttpPost("sessions/revoke-others")]
+    [Authorize]
+    [EnableRateLimiting("write")]
+    public IActionResult RevokeOtherSessions()
+        => Problem(detail: SessionsNotImplemented, statusCode: StatusCodes.Status501NotImplemented);
 
     [HttpPost("logout")]
     [Authorize]

@@ -80,6 +80,16 @@ try
     builder.Services.AddFluentValidationAutoValidation();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+    // Problem details for standardised error responses
+    builder.Services.AddProblemDetails(options =>
+    {
+        options.CustomizeProblemDetails = ctx =>
+        {
+            ctx.ProblemDetails.Instance ??= $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}";
+            ctx.ProblemDetails.Extensions["traceId"] = ctx.HttpContext.TraceIdentifier;
+        };
+    });
+
     // OpenAPI
     builder.Services.AddEndpointsApiExplorer();
 
@@ -128,16 +138,9 @@ try
 
     var app = builder.Build();
 
-    // Middleware pipeline
-    app.UseExceptionHandler(appError =>
-    {
-        appError.Run(async context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
-        });
-    });
+    // Middleware pipeline — ProblemDetails-aware exception + status-code handling
+    app.UseExceptionHandler();
+    app.UseStatusCodePages();
 
     app.UseSerilogRequestLogging();
     app.UseCors();
