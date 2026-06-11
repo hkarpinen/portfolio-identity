@@ -40,11 +40,13 @@ internal sealed class UserQuery : IUserQuery
             user.CreatedAt);
     }
 
-    public async Task<(IReadOnlyList<AdminUserDto> Items, int Total)> ListUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<AdminUserListDto> ListUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var total = await _dbContext.Users.CountAsync(cancellationToken);
+        // Exclude soft-deleted users from the admin list
+        var query = _dbContext.Users.Where(u => u.DeletedAt == null);
+        var total = await query.CountAsync(cancellationToken);
 
-        var items = await _dbContext.Users
+        var items = await query
             .AsNoTracking()
             .OrderBy(u => u.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -60,6 +62,6 @@ internal sealed class UserQuery : IUserQuery
                 u.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        return (items, total);
+        return new AdminUserListDto(items, total);
     }
 }

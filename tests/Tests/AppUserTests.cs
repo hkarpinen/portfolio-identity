@@ -152,6 +152,38 @@ public class AppUserTests
     }
 
     [Fact]
+    public void SoftDelete_ShouldAnonymiseAndLockout()
+    {
+        // Arrange
+        var user = AppUser.Create(Email.From("user@example.com"), "User");
+        user.ClearDomainEvents();
+
+        // Act
+        user.SoftDelete();
+
+        // Assert
+        Assert.NotNull(user.DeletedAt);
+        Assert.Equal("[deleted]", user.DisplayName);
+        Assert.True(user.LockoutEnabled);
+        Assert.Equal(DateTimeOffset.MaxValue, user.LockoutEnd);
+        Assert.False(user.EmailConfirmed);
+    }
+
+    [Fact]
+    public void SoftDelete_ShouldRaise_UserAccountDeletedEvent()
+    {
+        // Arrange
+        var user = AppUser.Create(Email.From("user@example.com"), "User");
+        user.ClearDomainEvents();
+
+        // Act
+        user.SoftDelete();
+
+        // Assert
+        Assert.Single(user.DomainEvents);
+        Assert.IsType<UserAccountDeleted>(user.DomainEvents[0]);
+    }
+    [Fact]
     public void Email_From_InvalidFormat_ShouldThrow()
     {
         // Arrange / Act / Assert

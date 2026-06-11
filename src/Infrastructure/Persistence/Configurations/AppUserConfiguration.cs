@@ -34,6 +34,8 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             .HasMaxLength(40);
 
         builder.Property(u => u.TwoFactorEnabledAt);
+        builder.Property(u => u.DeletedAt);
+        builder.HasIndex(u => u.DeletedAt);
 
         builder.Property(u => u.Role)
             .HasConversion<string>()

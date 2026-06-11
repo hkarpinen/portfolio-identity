@@ -99,4 +99,18 @@ internal sealed class ProfileManager : IProfileManager
 
         return Result<UploadAvatarDto>.Success(new UploadAvatarDto(avatarUrl));
     }
+
+    public async Task<Result> DeleteAccountAsync(Guid userId, DeleteAccountCommand command)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null) return Result.Failure("User not found.");
+
+        if (!string.Equals(user.DisplayName, command.ConfirmationDisplayName, StringComparison.Ordinal))
+            return Result.Failure("Confirmation does not match your display name.");
+
+        user.SoftDelete();
+        await _userRepository.SaveAsync(user);
+        return Result.Success();
+    }
+
 }

@@ -75,6 +75,55 @@ public class AppUser : IdentityUser<Guid>
             avatarUrl));
     }
 
+    /// <summary>
+    /// Enables 2FA and stamps the enabled-at timestamp in a single mutation so the flag and
+    /// timestamp cannot diverge. Both are persisted together by the next SaveAsync.
+    /// </summary>
+    public void MarkTwoFactorEnabled()
+    {
+        TwoFactorEnabled = true;
+        TwoFactorEnabledAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Disables 2FA and clears the enabled-at timestamp in a single mutation.
+    /// </summary>
+    public void MarkTwoFactorDisabled()
+    {
+        TwoFactorEnabled = false;
+        TwoFactorEnabledAt = null;
+    }
+
+    /// <summary>
+    /// Soft-deletes the account: stamps DeletedAt, anonymises display fields, and locks out lifelong.
+    /// The row is preserved so foreign-key references from forum content keep resolving to "[deleted]".
+    /// </summary>
+    public void SoftDelete()
+    {
+        var now = DateTime.UtcNow;
+        DeletedAt = now;
+        DisplayName = "[deleted]";
+        Handle = null;
+        Bio = null;
+        Location = null;
+        Pronouns = null;
+        AvatarUrl = null;
+        LockoutEnabled = true;
+        LockoutEnd = DateTimeOffset.MaxValue;
+        var anonEmail = $"deleted-{Id:N}@deleted.local";
+        UserName = anonEmail;
+        Email = anonEmail;
+        NormalizedEmail = anonEmail.ToUpperInvariant();
+        NormalizedUserName = anonEmail.ToUpperInvariant();
+        EmailConfirmed = false;
+
+        _domainEvents.Add(new UserAccountDeleted(
+            Guid.NewGuid(),
+            now,
+            Id,
+            now));
+    }
+
     public void ChangeAvatar(string? avatarUrl)
     {
         AvatarUrl = avatarUrl;

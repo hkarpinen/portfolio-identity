@@ -19,6 +19,7 @@ internal sealed class OutboxPublisher : BackgroundService
         [nameof(UserRegistered)]                    = typeof(UserRegistered),
         [nameof(UserProfileUpdated)]                = typeof(UserProfileUpdated),
         [nameof(UserBanned)]                        = typeof(UserBanned),
+        [nameof(UserAccountDeleted)]                = typeof(UserAccountDeleted),
         [nameof(UserRoleChanged)]                   = typeof(UserRoleChanged),
         [nameof(DemoUserCreated)]                   = typeof(DemoUserCreated),
         [nameof(DemoUserExpired)]                   = typeof(DemoUserExpired),

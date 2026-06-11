@@ -1,3 +1,4 @@
+using Application.Dtos;
 using Application.Queries;
 using Client.Extensions;
 using Identity.Application.Managers.Admin;
@@ -25,8 +26,8 @@ public sealed class AdminController : ControllerBase
     [HttpGet("users")]
     public async Task<IActionResult> ListUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var (items, _) = await _query.ListUsersAsync(page, pageSize);
-        return Ok(items);
+        var result = await _query.ListUsersAsync(page, pageSize);
+        return Ok(result);
     }
 
     [HttpPost("users/{id:guid}/ban")]
@@ -34,16 +35,18 @@ public sealed class AdminController : ControllerBase
     public async Task<IActionResult> BanUser([FromRoute] Guid id)
     {
         var result = await _adminManager.BanAsync(id);
-        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
     [HttpPost("users/{id:guid}/role")]
     [EnableRateLimiting("write")]
-    public async Task<IActionResult> ChangeRole([FromRoute] Guid id, [FromBody] ChangeRoleBody body)
+    public async Task<IActionResult> ChangeRole([FromRoute] Guid id, [FromBody] ChangeRoleDto body)
     {
         var result = await _adminManager.ChangeRoleAsync(id, body.Role);
-        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 }
-
-public sealed record ChangeRoleBody(string Role);

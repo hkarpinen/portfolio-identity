@@ -8,4 +8,5 @@ public interface IProfileManager
 {
     Task<Result> UpdateProfileAsync(Guid userId, UpdateProfileCommand command);
     Task<Result<UploadAvatarDto>> UploadAvatarAsync(Guid userId, UploadAvatarCommand command);
+    Task<Result> DeleteAccountAsync(Guid userId, DeleteAccountCommand command);
 }
