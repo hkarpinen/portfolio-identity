@@ -24,13 +24,11 @@ try
     builder.Host.UseSerilog((context, configuration) =>
         configuration.ReadFrom.Configuration(context.Configuration));
 
-    // Service registrations
     builder.Services.AddUtilities();
     builder.Services.AddDomain();
     builder.Services.AddApplicationServices();
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // Authentication
     var jwtSection = builder.Configuration.GetSection("Jwt");
     builder.Services.AddAuthentication(options =>
         {
@@ -61,7 +59,6 @@ try
             };
         });
 
-    // Authorization
     builder.Services.AddAuthorization(options =>
     {
         options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
@@ -73,14 +70,12 @@ try
                 ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin"));
     });
 
-    // Controllers & Validation
     builder.Services.AddControllers()
         .AddJsonOptions(o =>
             o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
     builder.Services.AddFluentValidationAutoValidation();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-    // Problem details for standardised error responses
     builder.Services.AddProblemDetails(options =>
     {
         options.CustomizeProblemDetails = ctx =>
@@ -90,13 +85,10 @@ try
         };
     });
 
-    // OpenAPI
     builder.Services.AddEndpointsApiExplorer();
 
-    // Health Checks
     builder.Services.AddHealthChecks();
 
-    // CORS
     var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
     builder.Services.AddCors(options =>
     {
@@ -109,7 +101,6 @@ try
         });
     });
 
-    // Rate Limiting
     builder.Services.AddRateLimiter(options =>
     {
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -138,7 +129,6 @@ try
 
     var app = builder.Build();
 
-    // Middleware pipeline — ProblemDetails-aware exception + status-code handling
     app.UseExceptionHandler();
     app.UseStatusCodePages();
 

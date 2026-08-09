@@ -29,14 +29,11 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldReturnNonEmptyString()
     {
-        // Arrange
         var generator = CreateGenerator();
         var user = CreateUser();
 
-        // Act
         var result = generator.GenerateToken(user);
 
-        // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Token);
         Assert.NotEmpty(result.Token);
@@ -46,16 +43,13 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldContain_SubClaim_WithUserId()
     {
-        // Arrange
         var generator = CreateGenerator();
         var user = CreateUser();
         var handler = new JwtSecurityTokenHandler();
 
-        // Act
         var result = generator.GenerateToken(user);
         var jwt = handler.ReadJwtToken(result.Token);
 
-        // Assert
         var sub = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
         Assert.Equal(user.Id.ToString(), sub);
     }
@@ -63,16 +57,13 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldContain_EmailClaim()
     {
-        // Arrange
         var generator = CreateGenerator();
         var user = CreateUser("alice@example.com");
         var handler = new JwtSecurityTokenHandler();
 
-        // Act
         var result = generator.GenerateToken(user);
         var jwt = handler.ReadJwtToken(result.Token);
 
-        // Assert
         var email = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
         Assert.Equal("alice@example.com", email);
     }
@@ -80,16 +71,13 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldContain_DisplayNameClaim()
     {
-        // Arrange
         var generator = CreateGenerator();
         var user = CreateUser(displayName: "Alice Wonder");
         var handler = new JwtSecurityTokenHandler();
 
-        // Act
         var result = generator.GenerateToken(user);
         var jwt = handler.ReadJwtToken(result.Token);
 
-        // Assert
         var displayName = jwt.Claims.FirstOrDefault(c => c.Type == "displayName")?.Value;
         Assert.Equal("Alice Wonder", displayName);
     }
@@ -97,16 +85,13 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldContain_RoleClaim()
     {
-        // Arrange
         var generator = CreateGenerator();
         var user = CreateUser(role: UserRole.Admin);
         var handler = new JwtSecurityTokenHandler();
 
-        // Act
         var result = generator.GenerateToken(user);
         var jwt = handler.ReadJwtToken(result.Token);
 
-        // Assert
         var role = jwt.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
         Assert.Equal("Admin", role);
     }
@@ -114,7 +99,6 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldBeValidatable_WithSameKey()
     {
-        // Arrange
         var settings = new JwtSettings
         {
             Secret = "super-secret-key-that-is-long-enough-for-hmac256",
@@ -126,7 +110,6 @@ public class JwtTokenGeneratorTests
         var user = CreateUser();
         var handler = new JwtSecurityTokenHandler();
 
-        // Act
         var result = generator.GenerateToken(user);
 
         var validationParams = new TokenValidationParameters
@@ -140,7 +123,6 @@ public class JwtTokenGeneratorTests
             ValidateLifetime = true
         };
 
-        // Assert - should not throw
         var principal = handler.ValidateToken(result.Token, validationParams, out _);
         Assert.NotNull(principal);
     }
@@ -148,16 +130,13 @@ public class JwtTokenGeneratorTests
     [Fact]
     public void GenerateToken_ShouldHaveCorrectIssuerAndAudience()
     {
-        // Arrange
         var generator = CreateGenerator();
         var user = CreateUser();
         var handler = new JwtSecurityTokenHandler();
 
-        // Act
         var result = generator.GenerateToken(user);
         var jwt = handler.ReadJwtToken(result.Token);
 
-        // Assert
         Assert.Equal("test-issuer", jwt.Issuer);
         Assert.Contains("test-audience", jwt.Audiences);
     }

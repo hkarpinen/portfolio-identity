@@ -8,10 +8,8 @@ public class ContactMessageTests
     [Fact]
     public void Submit_SetsProperties()
     {
-        // Act
         var msg = ContactMessage.Submit("Alice", "alice@example.com", "Hello", "Body text");
 
-        // Assert
         Assert.Equal("Alice", msg.SenderName);
         Assert.Equal("alice@example.com", msg.SenderEmail);
         Assert.Equal("Hello", msg.Subject);
@@ -24,10 +22,8 @@ public class ContactMessageTests
     [Fact]
     public void Submit_RaisesContactMessageReceivedEvent()
     {
-        // Act
         var msg = ContactMessage.Submit("Bob", "bob@example.com", "Subject", "Message body");
 
-        // Assert
         Assert.Single(msg.DomainEvents);
         var evt = Assert.IsType<ContactMessageReceived>(msg.DomainEvents.Single());
         Assert.Equal(msg.SenderName, evt.SenderName);
@@ -40,7 +36,6 @@ public class ContactMessageTests
     [Fact]
     public void Submit_EventPayloadMirrorsAggregateFields()
     {
-        // Act
         var msg = ContactMessage.Submit("Carol", "carol@example.com", "Re: Proposal", "Please review.");
 
         // Assert — the event carries its own identity GUID (not the aggregate ID)
@@ -85,10 +80,8 @@ public class ContactMessageTests
     [Fact]
     public void Submit_TrimsWhitespace_FromInputs()
     {
-        // Act
         var msg = ContactMessage.Submit("  Dave  ", "  dave@example.com  ", "  Hi  ", "  Content  ");
 
-        // Assert
         Assert.Equal("Dave", msg.SenderName);
         Assert.Equal("dave@example.com", msg.SenderEmail);
         Assert.Equal("Hi", msg.Subject);
@@ -98,14 +91,11 @@ public class ContactMessageTests
     [Fact]
     public void ClearDomainEvents_EmptiesCollection()
     {
-        // Arrange
         var msg = ContactMessage.Submit("Eve", "eve@example.com", "Test", "Body");
         Assert.NotEmpty(msg.DomainEvents);
 
-        // Act
         msg.ClearDomainEvents();
 
-        // Assert
         Assert.Empty(msg.DomainEvents);
     }
 }
