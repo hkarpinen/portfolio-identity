@@ -32,9 +32,19 @@ public sealed class AdminController : ControllerBase
 
     [HttpPost("users/{id:guid}/ban")]
     [EnableRateLimiting("write")]
-    public async Task<IActionResult> BanUser([FromRoute] Guid id)
+    public async Task<IActionResult> BanUser([FromRoute] Guid id, [FromBody] BanUserDto? body = null)
     {
-        var result = await _adminManager.BanAsync(id);
+        var result = await _adminManager.BanAsync(id, body?.Reason);
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    [HttpPost("users/{id:guid}/unban")]
+    [EnableRateLimiting("write")]
+    public async Task<IActionResult> UnbanUser([FromRoute] Guid id)
+    {
+        var result = await _adminManager.UnbanAsync(id);
         return result.IsSuccess
             ? NoContent()
             : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);

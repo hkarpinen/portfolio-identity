@@ -100,6 +100,22 @@ internal sealed class ProfileManager : IProfileManager
         return Result<UploadAvatarDto>.Success(new UploadAvatarDto(avatarUrl));
     }
 
+    /// <summary>In-session change, verifying the current password. Distinct from the
+    /// emailed-token reset, which is for someone who cannot sign in.</summary>
+    public async Task<Result> ChangePasswordAsync(Guid userId, ChangePasswordCommand command)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null)
+            return Result.Failure("User not found.");
+
+        var (succeeded, error) = await _userRepository.ChangePasswordAsync(
+            user, command.CurrentPassword, command.NewPassword);
+
+        // A wrong current password arrives as an ordinary validation failure; surface
+        // which it was, since "incorrect" and "too short" need different responses.
+        return succeeded ? Result.Success() : Result.Failure(error!);
+    }
+
     public async Task<Result> ChangeEmailAsync(Guid userId, ChangeEmailCommand command)
     {
         var user = await _userRepository.GetByIdAsync(new UserId(userId));
@@ -124,9 +140,8 @@ internal sealed class ProfileManager : IProfileManager
         if (!succeeded)
             return Result.Failure(error!);
 
-        // Changing the email forces re-verification: generate a confirmation token (Identity I/O),
-        // then let the aggregate reset EmailConfirmed and raise UserEmailConfirmationRequested.
-        // SaveAsync drains that event into the outbox so the confirmation email is dispatched.
+        // The token is minted here because it is I/O; the aggregate owns the reset and
+        // raises the event, which the commit drains into the outbox.
         var confirmationToken = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
         user.RequestEmailReverification(confirmationToken);
         await _userRepository.SaveAsync(user);

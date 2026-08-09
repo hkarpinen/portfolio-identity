@@ -59,7 +59,9 @@ internal sealed class UserQuery : IUserQuery
                 u.Role.ToString(),
                 u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow,
                 u.EmailConfirmed,
-                u.CreatedAt))
+                u.CreatedAt,
+                u.BannedAt,
+                u.BanReason))
             .ToListAsync(cancellationToken);
 
         return new AdminUserListDto(items, total);

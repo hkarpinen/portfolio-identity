@@ -17,4 +17,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Managers are `internal sealed` and reached through their ports in
+       production. Tests need them directly; Infrastructure already does this. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

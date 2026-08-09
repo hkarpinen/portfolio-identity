@@ -16,6 +16,12 @@ public class AppUser : IdentityUser<Guid>
     public UserRole Role { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? TwoFactorEnabledAt { get; private set; }
+
+    /// <summary>Set and cleared with the lockout itself.</summary>
+    public DateTime? BannedAt { get; private set; }
+
+    /// <summary>Why, in an admin's own words. Null when none was given.</summary>
+    public string? BanReason { get; private set; }
     public DateTime? DeletedAt { get; private set; }
     public bool IsDemo { get; private set; }
     public DateTime? DemoExpiresAt { get; private set; }
@@ -75,19 +81,13 @@ public class AppUser : IdentityUser<Guid>
             avatarUrl));
     }
 
-    /// <summary>
-    /// Enables 2FA and stamps the enabled-at timestamp in a single mutation so the flag and
-    /// timestamp cannot diverge. Both are persisted together by the next SaveAsync.
-    /// </summary>
+    /// <summary>Flag and timestamp move together so they cannot diverge.</summary>
     public void MarkTwoFactorEnabled()
     {
         TwoFactorEnabled = true;
         TwoFactorEnabledAt = DateTime.UtcNow;
     }
 
-    /// <summary>
-    /// Disables 2FA and clears the enabled-at timestamp in a single mutation.
-    /// </summary>
     public void MarkTwoFactorDisabled()
     {
         TwoFactorEnabled = false;
@@ -95,8 +95,8 @@ public class AppUser : IdentityUser<Guid>
     }
 
     /// <summary>
-    /// Soft-deletes the account: stamps DeletedAt, anonymises display fields, and locks out lifelong.
-    /// The row is preserved so foreign-key references from forum content keep resolving to "[deleted]".
+    /// Soft delete: the row survives so references from their old content still
+    /// resolve, but every display field is anonymised and the account locked for good.
     /// </summary>
     public void SoftDelete()
     {
@@ -137,10 +137,8 @@ public class AppUser : IdentityUser<Guid>
     }
 
     /// <summary>
-    /// Marks the (already-changed) email address as unverified and requests a fresh confirmation.
-    /// Forcing re-verification on email change is a domain rule, so the aggregate owns both the
-    /// EmailConfirmed reset and the UserEmailConfirmationRequested event. The caller supplies the
-    /// confirmation token because token generation is an Identity I/O concern handled by the repo.
+    /// Re-verification on email change is a domain rule, so the reset and its event are
+    /// raised together here. The token is passed IN because minting one is an I/O concern.
     /// </summary>
     public void RequestEmailReverification(string confirmationToken)
     {
@@ -155,13 +153,32 @@ public class AppUser : IdentityUser<Guid>
             confirmationToken));
     }
 
-    public void Ban()
+    /// <summary>Date and reason are set WITH the lockout, so they cannot diverge from it.</summary>
+    /// <param name="reason">Free text shown to admins. Optional.</param>
+    public void Ban(string? reason = null)
     {
         var now = DateTime.UtcNow;
         LockoutEnabled = true;
         LockoutEnd = DateTimeOffset.MaxValue;
+        BannedAt = now;
+        BanReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
 
         _domainEvents.Add(new UserBanned(
+            Guid.NewGuid(),
+            now,
+            Id,
+            now));
+    }
+
+    public void Unban()
+    {
+        var now = DateTime.UtcNow;
+        LockoutEnd = null;
+        // Cleared with the lockout — a lifted ban must not still read as locked.
+        BannedAt = null;
+        BanReason = null;
+
+        _domainEvents.Add(new UserUnbanned(
             Guid.NewGuid(),
             now,
             Id,

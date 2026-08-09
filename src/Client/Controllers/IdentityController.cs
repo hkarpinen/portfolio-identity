@@ -125,6 +125,19 @@ public sealed class IdentityController : ControllerBase
         return Ok();
     }
 
+    /// <summary>Runs INSIDE a session, unlike the anonymous sign-in challenge.</summary>
+    [HttpPost("2fa/confirm")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ConfirmTwoFactor([FromBody] ConfirmTwoFactorCommand command)
+    {
+        var userId = User.GetUserId();
+        var result = await _twoFactorManager.ConfirmTwoFactorAsync(userId, command);
+        return result.IsSuccess
+            ? NoContent()
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
     [HttpPost("2fa/disable")]
     [Authorize]
     [EnableRateLimiting("auth")]
@@ -137,9 +150,23 @@ public sealed class IdentityController : ControllerBase
             : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
+    /// <summary>Reads the count only. Minting is the POST below — never this.</summary>
     [HttpGet("2fa/recovery-codes")]
     [Authorize]
-    public async Task<IActionResult> GetRecoveryCodes()
+    public async Task<IActionResult> GetRecoveryCodeStatus()
+    {
+        var userId = User.GetUserId();
+        var result = await _twoFactorManager.GetRecoveryCodeStatusAsync(userId);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    /// <summary>Invalidates every previous code, and returns the new set only once.</summary>
+    [HttpPost("2fa/recovery-codes/regenerate")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> RegenerateRecoveryCodes()
     {
         var userId = User.GetUserId();
         var result = await _twoFactorManager.GenerateRecoveryCodesAsync(userId);
@@ -186,6 +213,20 @@ public sealed class IdentityController : ControllerBase
 
         return result.IsSuccess
             ? Ok(result.Value)
+            : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    /// <summary>In-session change. `reset-password` is the emailed-token flow for
+    /// someone who cannot sign in, and is not a substitute.</summary>
+    [HttpPut("password")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
+    {
+        var userId = User.GetUserId();
+        var result = await _profileManager.ChangePasswordAsync(userId, command);
+        return result.IsSuccess
+            ? NoContent()
             : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
@@ -238,10 +279,8 @@ public sealed class IdentityController : ControllerBase
             : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
-    // Session management requires a refresh-token / session store that is not wired up in this
-    // service (auth is a single stateless access-token cookie). Rather than return fabricated
-    // session data or no-op "revokes" that falsely report success, these endpoints honestly
-    // report 501 Not Implemented until a session store exists.
+    // Auth is one stateless cookie with no session store, so these answer 501 rather
+    // than fabricating rows or a "revoke" that reports success and does nothing.
     private const string SessionsNotImplemented =
         "Session management is not available: this service does not maintain a session store.";
 

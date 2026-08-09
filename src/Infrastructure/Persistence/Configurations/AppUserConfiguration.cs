@@ -34,6 +34,11 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             .HasMaxLength(40);
 
         builder.Property(u => u.TwoFactorEnabledAt);
+
+        builder.Property(u => u.BannedAt);
+        builder.Property(u => u.BanReason)
+            .HasMaxLength(200);
+
         builder.Property(u => u.DeletedAt);
         builder.HasIndex(u => u.DeletedAt);
 

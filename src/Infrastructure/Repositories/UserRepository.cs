@@ -107,11 +107,23 @@ internal sealed class UserRepository : IUserRepository
     public Task<bool> CheckPasswordAsync(AppUser user, string password, CancellationToken cancellationToken = default)
         => _userManager.CheckPasswordAsync(user, password);
 
+    public async Task<(bool Succeeded, string? Error)> ChangePasswordAsync(
+        AppUser user, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        return result.Succeeded
+            ? (true, null)
+            : (false, string.Join(" ", result.Errors.Select(e => e.Description)));
+    }
+
     public async Task<IReadOnlyList<string>> GenerateRecoveryCodesAsync(AppUser user, int count = 10, CancellationToken cancellationToken = default)
     {
         var codes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, count);
         return codes?.ToList().AsReadOnly() ?? (IReadOnlyList<string>)Array.Empty<string>();
     }
+
+    public Task<int> CountRecoveryCodesAsync(AppUser user, CancellationToken cancellationToken = default)
+        => _userManager.CountRecoveryCodesAsync(user);
 
     public async Task<IReadOnlyList<(string Provider, string ProviderKey)>> GetExternalLoginsAsync(AppUser user, CancellationToken cancellationToken = default)
     {

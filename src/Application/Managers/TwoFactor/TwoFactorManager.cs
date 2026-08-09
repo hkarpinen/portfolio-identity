@@ -49,14 +49,35 @@ internal sealed class TwoFactorManager : ITwoFactorManager
 
         if (!user.TwoFactorEnabled)
         {
-            // Flag + timestamp are set together on the aggregate and persisted in one write
-            // so TwoFactorEnabled and TwoFactorEnabledAt can never diverge.
+            // Set together so the flag and its timestamp cannot diverge.
             user.MarkTwoFactorEnabled();
             await _userRepository.SaveAsync(user);
         }
 
         var tokenResult = _jwtTokenGenerator.GenerateToken(user);
         return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime));
+    }
+
+    /// <summary>
+    /// Finishes setup for a signed-in user. The sign-in challenge is a different
+    /// operation: anonymous, keyed by email, and it mints a cookie — wrong here.
+    /// </summary>
+    public async Task<Result> ConfirmTwoFactorAsync(Guid userId, ConfirmTwoFactorCommand command)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null) return Result.Failure("User not found.");
+
+        if (!await _userRepository.VerifyTwoFactorTokenAsync(user, command.Code))
+            return Result.Failure("That code didn't match. Try the next one your app shows.");
+
+        if (!user.TwoFactorEnabled)
+        {
+            // Set together so the flag and its timestamp cannot diverge.
+            user.MarkTwoFactorEnabled();
+            await _userRepository.SaveAsync(user);
+        }
+
+        return Result.Success();
     }
 
     public async Task<Result> DisableTwoFactorAsync(Guid userId, DisableTwoFactorCommand command)
@@ -70,10 +91,23 @@ internal sealed class TwoFactorManager : ITwoFactorManager
         if (!await _userRepository.VerifyTwoFactorTokenAsync(user, command.CurrentCode))
             return Result.Failure("Invalid verification code.");
 
-        // Flag + timestamp cleared together on the aggregate and persisted in one write.
+        // Cleared together so the flag and its timestamp cannot diverge.
         user.MarkTwoFactorDisabled();
         await _userRepository.SaveAsync(user);
         return Result.Success();
+    }
+
+    public async Task<Result<TwoFactorRecoveryStatusDto>> GetRecoveryCodeStatusAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId));
+        if (user is null)
+            return Result<TwoFactorRecoveryStatusDto>.Failure("User not found.");
+
+        if (!user.TwoFactorEnabled)
+            return Result<TwoFactorRecoveryStatusDto>.Success(new TwoFactorRecoveryStatusDto(0));
+
+        var remaining = await _userRepository.CountRecoveryCodesAsync(user);
+        return Result<TwoFactorRecoveryStatusDto>.Success(new TwoFactorRecoveryStatusDto(remaining));
     }
 
     public async Task<Result<TwoFactorRecoveryCodesDto>> GenerateRecoveryCodesAsync(Guid userId)

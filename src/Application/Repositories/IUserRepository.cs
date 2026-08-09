@@ -21,8 +21,21 @@ public interface IUserRepository
     Task<(bool Succeeded, string? Error)> UpdateAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AppUser>> GetExpiredDemoUsersAsync(CancellationToken cancellationToken = default);
     Task<bool> CheckPasswordAsync(AppUser user, string password, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Change the password, verifying the current one. Distinct from
+    /// <c>ResetPasswordAsync</c>, which is the emailed-token flow for someone
+    /// who cannot sign in.
+    /// </summary>
+    Task<(bool Succeeded, string? Error)> ChangePasswordAsync(AppUser user, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> ChangeEmailAsync(AppUser user, string newEmail, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GenerateRecoveryCodesAsync(AppUser user, int count = 10, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// How many recovery codes the user has left. Reading the count must never
+    /// mint a new set — the Security screen shows this on every visit.
+    /// </summary>
+    Task<int> CountRecoveryCodesAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<(string Provider, string ProviderKey)>> GetExternalLoginsAsync(AppUser user, CancellationToken cancellationToken = default);
     Task<(bool Succeeded, string? Error)> RemoveExternalLoginAsync(AppUser user, string provider, CancellationToken cancellationToken = default);
     Task<int> CountPasswordsAndLoginsAsync(AppUser user, CancellationToken cancellationToken = default);
