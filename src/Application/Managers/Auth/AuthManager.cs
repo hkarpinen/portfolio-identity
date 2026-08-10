@@ -67,7 +67,7 @@ internal sealed class AuthManager : IAuthManager
             return Result<LoginDto>.Success(new LoginDto(RequiresTwoFactor: true, Token: null));
 
         var tokenResult = _jwtTokenGenerator.GenerateToken(user);
-        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime));
+        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime, user.Id));
     }
 
     public async Task ForgotPasswordAsync(ForgotPasswordCommand command)
@@ -99,6 +99,18 @@ internal sealed class AuthManager : IAuthManager
 
         var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
         await _userRepository.QueueConfirmationEmailAsync(user, token);
+    }
+
+    public async Task<TokenResult?> IssueAccessTokenAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _userRepository.GetByIdAsync(new UserId(userId), ct);
+        if (user is null) return null;
+
+        // A ban parks LockoutEnd at MaxValue, so this is also what stops a banned account
+        // refreshing its way back in on a token minted before the ban.
+        if (user.LockoutEnd is { } until && until > DateTimeOffset.UtcNow) return null;
+
+        return _jwtTokenGenerator.GenerateToken(user);
     }
 
     public async Task<Result> ConfirmEmailAsync(ConfirmEmailCommand command)

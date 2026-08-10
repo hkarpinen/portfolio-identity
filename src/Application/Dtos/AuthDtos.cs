@@ -1,6 +1,6 @@
 namespace Application.Dtos;
 
-public sealed record LoginDto(bool RequiresTwoFactor, string? Token, DateTime? ExpiresAt = null);
+public sealed record LoginDto(bool RequiresTwoFactor, string? Token, DateTime? ExpiresAt = null, Guid UserId = default);
 public sealed record UploadAvatarDto(string AvatarUrl);
 public sealed record TwoFactorSetupDto(string SharedKey, string AuthenticatorUri);
 
@@ -51,3 +51,12 @@ public sealed record AdminUserDto(
     DateTime? BannedAt,
     /// <summary>The admin's own words. Null when none was given.</summary>
     string? BanReason);
+
+public sealed record SessionDto(
+    Guid SessionId,
+    string? UserAgent,
+    string? IpAddress,
+    DateTime StartedAt,
+    DateTime LastUsedAt,
+    DateTime ExpiresAt,
+    bool IsCurrent);

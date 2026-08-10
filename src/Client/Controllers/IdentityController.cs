@@ -20,17 +20,20 @@ public sealed class IdentityController : ControllerBase
     private readonly ITwoFactorManager _twoFactorManager;
     private readonly IProfileManager _profileManager;
     private readonly IUserQuery _query;
+    private readonly ISessionManager _sessions;
 
     public IdentityController(
         IAuthManager authManager,
         ITwoFactorManager twoFactorManager,
         IProfileManager profileManager,
-        IUserQuery query)
+        IUserQuery query,
+        ISessionManager sessions)
     {
         _authManager = authManager;
         _twoFactorManager = twoFactorManager;
         _profileManager = profileManager;
         _query = query;
+        _sessions = sessions;
     }
 
     [HttpPost("register")]
@@ -59,7 +62,42 @@ public sealed class IdentityController : ControllerBase
             return Ok(new { requiresTwoFactor = true });
 
         SetAccessTokenCookie(loginResult.Token!, loginResult.ExpiresAt!.Value);
+        await StartSessionAsync(loginResult.UserId);
         return Ok(new { requiresTwoFactor = false });
+    }
+
+    /// <summary>
+    /// Trades the refresh cookie for a new access token, rotating the refresh cookie as it goes.
+    /// Anonymous by design: it runs precisely when the access token has already expired.
+    /// </summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> Refresh(CancellationToken ct)
+    {
+        var presented = Request.Cookies[RefreshCookie];
+        if (string.IsNullOrWhiteSpace(presented))
+            return Problem(detail: "No session to refresh.", statusCode: StatusCodes.Status401Unauthorized);
+
+        var session = await _sessions.RefreshAsync(presented, UserAgent, CallerIp, ct);
+        if (session is null)
+        {
+            // Expired, signed out, or a token presented after it was already spent. The cookies go
+            // either way — leaving a dead refresh cookie in place just retries this forever.
+            ClearAuthCookies();
+            return Problem(detail: "That session has ended. Sign in again.", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var token = await _authManager.IssueAccessTokenAsync(session.UserId, ct);
+        if (token is null)
+        {
+            ClearAuthCookies();
+            return Problem(detail: "That session has ended. Sign in again.", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        SetAccessTokenCookie(token.Token, token.ExpiresAt.UtcDateTime);
+        SetRefreshCookie(session.RefreshToken, session.RefreshExpiresAt);
+        return NoContent();
     }
 
     [HttpPost("forgot-password")]
@@ -122,6 +160,7 @@ public sealed class IdentityController : ControllerBase
             return Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
 
         SetAccessTokenCookie(result.Value!.Token!, result.Value.ExpiresAt!.Value);
+        await StartSessionAsync(result.Value.UserId);
         return Ok();
     }
 
@@ -252,7 +291,7 @@ public sealed class IdentityController : ControllerBase
         if (!result.IsSuccess)
             return Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
 
-        Response.Cookies.Delete("access_token");
+        ClearAuthCookies();
         return NoContent();
     }
 
@@ -279,27 +318,25 @@ public sealed class IdentityController : ControllerBase
             : Problem(detail: result.Error, statusCode: StatusCodes.Status400BadRequest);
     }
 
-    // Auth is one stateless cookie with no session store, so these answer 501 rather
-    // than fabricating rows or a "revoke" that reports success and does nothing.
-    private const string SessionsNotImplemented =
-        "Session management is not available: this service does not maintain a session store.";
-
     [HttpGet("sessions")]
     [Authorize]
-    public IActionResult ListSessions()
-        => Problem(detail: SessionsNotImplemented, statusCode: StatusCodes.Status501NotImplemented);
+    public async Task<IActionResult> ListSessions(CancellationToken ct)
+        => Ok(await _sessions.ListAsync(User.GetUserId(), Request.Cookies[RefreshCookie], ct));
 
     [HttpPost("sessions/{sessionId:guid}/revoke")]
     [Authorize]
     [EnableRateLimiting("write")]
-    public IActionResult RevokeSession([FromRoute] Guid sessionId)
-        => Problem(detail: SessionsNotImplemented, statusCode: StatusCodes.Status501NotImplemented);
+    public async Task<IActionResult> RevokeSession([FromRoute] Guid sessionId, CancellationToken ct)
+        => await _sessions.RevokeAsync(User.GetUserId(), sessionId, ct) ? NoContent() : NotFound();
 
     [HttpPost("sessions/revoke-others")]
     [Authorize]
     [EnableRateLimiting("write")]
-    public IActionResult RevokeOtherSessions()
-        => Problem(detail: SessionsNotImplemented, statusCode: StatusCodes.Status501NotImplemented);
+    public async Task<IActionResult> RevokeOtherSessions(CancellationToken ct)
+    {
+        await _sessions.RevokeOthersAsync(User.GetUserId(), Request.Cookies[RefreshCookie], ct);
+        return NoContent();
+    }
 
     [HttpPost("logout")]
     [Authorize]
@@ -308,6 +345,39 @@ public sealed class IdentityController : ControllerBase
         Response.Cookies.Delete("access_token");
         return NoContent();
     }
+
+    private const string RefreshCookie = "refresh_token";
+
+    private string? UserAgent => Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null;
+    private string? CallerIp => HttpContext.Connection.RemoteIpAddress?.ToString();
+
+    private async Task StartSessionAsync(Guid userId)
+    {
+        var session = await _sessions.StartAsync(userId, UserAgent, CallerIp, HttpContext.RequestAborted);
+        SetRefreshCookie(session.RefreshToken, session.RefreshExpiresAt);
+    }
+
+    // Scoped to the refresh route: it is the only thing that should ever send this cookie, so a
+    // stolen access token cannot be traded for a fresh session.
+    private void SetRefreshCookie(string token, DateTime expiresAtUtc) =>
+        Response.Cookies.Append(RefreshCookie, token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Strict,
+            Path = "/api/identity/refresh",
+            Expires = AsOffset(expiresAtUtc)
+        });
+
+    private void ClearAuthCookies()
+    {
+        Response.Cookies.Delete("access_token");
+        // Delete only matches on path, so it must be given the one the cookie was written with.
+        Response.Cookies.Delete(RefreshCookie, new CookieOptions { Path = "/api/identity/refresh" });
+    }
+
+    private static DateTimeOffset AsOffset(DateTime utc) =>
+        new(utc.Kind == DateTimeKind.Utc ? utc : DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeSpan.Zero);
 
     private void SetAccessTokenCookie(string token, DateTime expiresAtUtc)
     {

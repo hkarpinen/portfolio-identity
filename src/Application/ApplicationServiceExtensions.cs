@@ -13,6 +13,7 @@ public static class ApplicationServiceExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<IAuthManager, AuthManager>();
+        services.AddScoped<ISessionManager, SessionManager>();
         services.AddScoped<ITwoFactorManager, TwoFactorManager>();
         services.AddScoped<IProfileManager, ProfileManager>();
         services.AddScoped<IAdminManager, AdminManager>();

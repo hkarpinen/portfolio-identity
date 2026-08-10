@@ -11,6 +11,7 @@ public sealed class IdentityDbContext
 {
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public IdentityDbContext(DbContextOptions<IdentityDbContext> options)
         : base(options) { }

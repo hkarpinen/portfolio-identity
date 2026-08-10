@@ -55,7 +55,7 @@ internal sealed class TwoFactorManager : ITwoFactorManager
         }
 
         var tokenResult = _jwtTokenGenerator.GenerateToken(user);
-        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime));
+        return Result<LoginDto>.Success(new LoginDto(false, tokenResult.Token, tokenResult.ExpiresAt.UtcDateTime, user.Id));
     }
 
     /// <summary>
