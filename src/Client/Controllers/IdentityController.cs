@@ -357,23 +357,25 @@ public sealed class IdentityController : ControllerBase
         SetRefreshCookie(session.RefreshToken, session.RefreshExpiresAt);
     }
 
-    // Scoped to the refresh route: it is the only thing that should ever send this cookie, so a
-    // stolen access token cannot be traded for a fresh session.
+    // Path is "/" rather than the refresh route, which is a deliberate trade. Scoping it would
+    // keep the cookie away from the other services on this origin, but it would also keep it away
+    // from the frontend's middleware — and a full page load is exactly when a lapsed session needs
+    // renewing. HttpOnly, Secure and SameSite=Strict are what actually defend this cookie; a path
+    // is not a security boundary in any browser.
     private void SetRefreshCookie(string token, DateTime expiresAtUtc) =>
         Response.Cookies.Append(RefreshCookie, token, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.Strict,
-            Path = "/api/identity/refresh",
+            Path = "/",
             Expires = AsOffset(expiresAtUtc)
         });
 
     private void ClearAuthCookies()
     {
         Response.Cookies.Delete("access_token");
-        // Delete only matches on path, so it must be given the one the cookie was written with.
-        Response.Cookies.Delete(RefreshCookie, new CookieOptions { Path = "/api/identity/refresh" });
+        Response.Cookies.Delete(RefreshCookie, new CookieOptions { Path = "/" });
     }
 
     private static DateTimeOffset AsOffset(DateTime utc) =>
