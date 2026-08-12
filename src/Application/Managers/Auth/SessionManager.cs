@@ -44,7 +44,11 @@ internal sealed class SessionManager(IRefreshTokenRepository tokens) : ISessionM
         if (!presented.IsActive(now))
         {
             if (presented.ReplacedById is not null)
-                await tokens.RevokeFamilyAsync(presented.FamilyId, ct);
+            {
+                foreach (var relative in await tokens.ListActiveInFamilyAsync(presented.FamilyId, ct))
+                    relative.Revoke(now);
+                await tokens.SaveChangesAsync(ct);
+            }
             return null;
         }
 
@@ -96,13 +100,13 @@ internal sealed class SessionManager(IRefreshTokenRepository tokens) : ISessionM
 
     public async Task RevokeOthersAsync(Guid userId, string? currentRawToken, CancellationToken ct = default)
     {
-        Guid? keepId = null;
-        if (currentRawToken is not null)
-        {
-            var current = await tokens.GetByHashAsync(RefreshToken.Hash(currentRawToken), ct);
-            keepId = current?.Id;
-        }
+        var keepHash = currentRawToken is null ? null : RefreshToken.Hash(currentRawToken);
+        var now = DateTime.UtcNow;
 
-        await tokens.RevokeAllForUserAsync(userId, keepId, ct);
+        foreach (var session in await tokens.ListActiveForUserAsync(userId, ct))
+            if (session.TokenHash != keepHash)
+                session.Revoke(now);
+
+        await tokens.SaveChangesAsync(ct);
     }
 }

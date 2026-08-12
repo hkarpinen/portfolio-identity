@@ -80,4 +80,18 @@ public class RefreshTokenTests
         Assert.False(record.IsActive(DateTime.UtcNow));
         Assert.Null(record.ReplacedById);
     }
+
+    [Fact]
+    public void Revoke_IsIdempotent_SoARepeatedSweepCannotMoveTheTime()
+    {
+        // The rule that a bulk UPDATE in the repository was quietly bypassing: revoking twice
+        // keeps the FIRST time, because that is when the session actually ended.
+        var (record, _) = Issue();
+        var ended = DateTime.UtcNow;
+
+        record.Revoke(ended);
+        record.Revoke(ended.AddMinutes(30));
+
+        Assert.Equal(ended, record.RevokedAt);
+    }
 }
