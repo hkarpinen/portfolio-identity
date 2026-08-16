@@ -27,9 +27,19 @@ internal sealed class LocalFileStorage : IFileStorage
         return $"{_options.PublicBaseUrl.TrimEnd('/')}/{key}";
     }
 
-    public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+    public Task DeleteByUrlAsync(string url, CancellationToken cancellationToken = default)
     {
-        var path = Path.Combine(_options.LocalPath, key);
+        var prefix = _options.PublicBaseUrl.TrimEnd('/') + "/";
+        if (!url.StartsWith(prefix, StringComparison.Ordinal))
+            return Task.CompletedTask;
+
+        // The URL comes from our own database, but resolving before comparing means a malformed
+        // row cannot walk out of the storage root.
+        var root = Path.GetFullPath(_options.LocalPath) + Path.DirectorySeparatorChar;
+        var path = Path.GetFullPath(Path.Combine(root, url[prefix.Length..]));
+        if (!path.StartsWith(root, StringComparison.Ordinal))
+            return Task.CompletedTask;
+
         if (File.Exists(path))
             File.Delete(path);
         return Task.CompletedTask;

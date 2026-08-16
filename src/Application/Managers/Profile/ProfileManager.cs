@@ -91,11 +91,22 @@ internal sealed class ProfileManager : IProfileManager
             _ => "bin"
         };
 
-        var key = $"identity/users/{userId}/avatar.{extension}";
+        var previousAvatarUrl = user.AvatarUrl;
+
+        // Per-upload key, not a stable one. `identity/users/{userId}/avatar.{ext}` is derivable
+        // from any userId, and userIds travel in ordinary API responses — so a stable key hands
+        // anyone the avatar of anyone they can name, unauthenticated. It also strands the old file
+        // when the extension changes, publicly readable forever.
+        var key = $"identity/users/{userId}/{Guid.NewGuid():N}.{extension}";
         var avatarUrl = await _fileStorage.SaveAsync(key, command.Content, command.ContentType);
 
         user.ChangeAvatar(avatarUrl);
         await _userRepository.SaveAsync(user);
+
+        // After the save, never before: a failed write must not leave the account pointing at a
+        // file that is already gone.
+        if (!string.IsNullOrEmpty(previousAvatarUrl))
+            await _fileStorage.DeleteByUrlAsync(previousAvatarUrl);
 
         return Result<UploadAvatarDto>.Success(new UploadAvatarDto(avatarUrl));
     }
