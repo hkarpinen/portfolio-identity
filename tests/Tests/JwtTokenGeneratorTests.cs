@@ -63,46 +63,54 @@ public class JwtTokenGeneratorTests
         Assert.Equal(user.Id.ToString(), sub);
     }
 
+    /// <summary>
+    /// The token says who you are, not what you may do. Profile data on it was a denormalised copy
+    /// that went stale for a token lifetime; the role vocabulary on it was what leaked identity's
+    /// enum into forum, which allow-listed the names and 403'd every demo write when `Demo` was
+    /// added. Both are regressions worth failing a build over.
+    /// </summary>
     [Fact]
-    public void GenerateToken_ShouldContain_EmailClaim()
+    public void GenerateToken_ShouldCarryNothingButIdentity()
     {
         var generator = CreateGenerator();
-        var user = CreateUser("alice@example.com");
+        var user = CreateUser("alice@example.com", "Alice Wonder");
         var handler = new JwtSecurityTokenHandler();
 
-        var result = generator.GenerateToken(user);
-        var jwt = handler.ReadJwtToken(result.Token);
+        var jwt = handler.ReadJwtToken(generator.GenerateToken(user).Token);
+        var types = jwt.Claims.Select(c => c.Type).ToHashSet();
 
-        var email = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
-        Assert.Equal("alice@example.com", email);
+        Assert.DoesNotContain(JwtRegisteredClaimNames.Email, types);
+        Assert.DoesNotContain("displayName", types);
+        Assert.DoesNotContain("avatarUrl", types);
+        Assert.DoesNotContain("role", types);
     }
 
     [Fact]
-    public void GenerateToken_ShouldContain_DisplayNameClaim()
+    public void GenerateToken_ShouldCarryAdminClaim_ForAdministrators()
     {
         var generator = CreateGenerator();
-        var user = CreateUser(displayName: "Alice Wonder");
         var handler = new JwtSecurityTokenHandler();
 
-        var result = generator.GenerateToken(user);
-        var jwt = handler.ReadJwtToken(result.Token);
+        var jwt = handler.ReadJwtToken(generator.GenerateToken(CreateUser(role: UserRole.Admin)).Token);
 
-        var displayName = jwt.Claims.FirstOrDefault(c => c.Type == "displayName")?.Value;
-        Assert.Equal("Alice Wonder", displayName);
+        Assert.Equal("true", jwt.Claims.FirstOrDefault(c => c.Type == "admin")?.Value);
     }
 
-    [Fact]
-    public void GenerateToken_ShouldContain_RoleClaim()
+    /// <summary>
+    /// Absent rather than "false", so a consumer that forgets to compare the value still gets the
+    /// safe answer from a bare presence check.
+    /// </summary>
+    [Theory]
+    [InlineData(UserRole.Member)]
+    [InlineData(UserRole.Demo)]
+    public void GenerateToken_ShouldOmitAdminClaim_ForEveryoneElse(UserRole role)
     {
         var generator = CreateGenerator();
-        var user = CreateUser(role: UserRole.Admin);
         var handler = new JwtSecurityTokenHandler();
 
-        var result = generator.GenerateToken(user);
-        var jwt = handler.ReadJwtToken(result.Token);
+        var jwt = handler.ReadJwtToken(generator.GenerateToken(CreateUser(role: role)).Token);
 
-        var role = jwt.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
-        Assert.Equal("Admin", role);
+        Assert.DoesNotContain("admin", jwt.Claims.Select(c => c.Type));
     }
 
     /// <summary>

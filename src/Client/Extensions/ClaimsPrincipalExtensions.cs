@@ -12,11 +12,4 @@ public static class ClaimsPrincipalExtensions
         return Guid.Parse(raw);
     }
 
-    public static string GetRole(this ClaimsPrincipal principal) =>
-        principal.FindFirstValue(ClaimTypes.Role)
-        ?? throw new InvalidOperationException("Missing role claim.");
-
-    public static string GetEmail(this ClaimsPrincipal principal) =>
-        principal.FindFirstValue(ClaimTypes.Email)
-        ?? throw new InvalidOperationException("Missing email claim.");
 }

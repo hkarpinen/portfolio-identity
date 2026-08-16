@@ -71,9 +71,7 @@ try
             .RequireAuthenticatedUser()
             .Build();
         options.AddPolicy("AdminOnly", policy =>
-            policy.RequireAssertion(ctx =>
-                ctx.User.FindFirst("role")?.Value == "Admin" ||
-                ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin"));
+            policy.RequireAssertion(ctx => ctx.User.HasClaim("admin", "true")));
     });
 
     builder.Services.AddControllers()

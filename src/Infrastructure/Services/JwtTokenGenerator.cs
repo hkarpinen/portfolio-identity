@@ -20,16 +20,26 @@ internal sealed class JwtTokenGenerator : IJwtTokenGenerator
 
     public TokenResult GenerateToken(AppUser user, DateTimeOffset? overrideExpiry = null)
     {
+        // The token says who you are, not what you may do. Anything a service needs in order to
+        // authorise is that service's own — forum reads its community memberships, household its
+        // memberships, and both keep an IsDemo projection already. Putting identity's role
+        // vocabulary in here is what let it leak: adding `Demo` once 403'd every forum write,
+        // because forum was allow-listing role names it does not own.
+        //
+        // `admin` is the exception, and only because "is this a platform administrator" is a fact
+        // identity holds about its own account. It is a boolean, not an enum, so identity can add
+        // roles forever without breaking a consumer.
+        //
+        // Email, display name and avatar are gone too: they were denormalised copies that went
+        // stale for a token lifetime, and nothing read them off the token. The frontend asks
+        // /api/identity/me.
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email!),
-            new("displayName", user.DisplayName),
-            new("role", user.Role.ToString())
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString())
         };
 
-        if (!string.IsNullOrEmpty(user.AvatarUrl))
-            claims.Add(new Claim("avatarUrl", user.AvatarUrl));
+        if (user.Role == UserRole.Admin)
+            claims.Add(new Claim("admin", "true"));
 
         var expiresAt = overrideExpiry ?? DateTimeOffset.UtcNow.AddMinutes(_settings.ExpirationMinutes);
 
