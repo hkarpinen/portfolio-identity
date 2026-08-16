@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Domain.Aggregates.User;
 using Infrastructure.Services;
 using Microsoft.Extensions.Options;
@@ -9,16 +11,23 @@ namespace Tests;
 
 public class JwtTokenGeneratorTests
 {
-    private static JwtTokenGenerator CreateGenerator(int expirationMinutes = 60)
+    private static JwtSettings CreateSettings(int expirationMinutes = 60)
     {
-        var settings = new JwtSettings
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        return new JwtSettings
         {
-            Secret = "super-secret-key-that-is-long-enough-for-hmac256",
+            PrivateKeyPem = Convert.ToBase64String(
+                Encoding.UTF8.GetBytes(ecdsa.ExportPkcs8PrivateKeyPem())),
             Issuer = "test-issuer",
             Audience = "test-audience",
             ExpirationMinutes = expirationMinutes
         };
-        return new JwtTokenGenerator(Options.Create(settings));
+    }
+
+    private static JwtTokenGenerator CreateGenerator(int expirationMinutes = 60)
+    {
+        var settings = CreateSettings(expirationMinutes);
+        return new JwtTokenGenerator(Options.Create(settings), new JwtSigningKey(Options.Create(settings)));
     }
 
     private static AppUser CreateUser(string email = "user@example.com", string displayName = "Test User", UserRole role = UserRole.Member)
@@ -96,17 +105,16 @@ public class JwtTokenGeneratorTests
         Assert.Equal("Admin", role);
     }
 
+    /// <summary>
+    /// The point of the whole scheme: a consumer holding nothing but the published key set can
+    /// verify the signature. Nothing secret crosses a service boundary.
+    /// </summary>
     [Fact]
-    public void GenerateToken_ShouldBeValidatable_WithSameKey()
+    public void GenerateToken_ShouldBeValidatable_WithThePublishedPublicKey()
     {
-        var settings = new JwtSettings
-        {
-            Secret = "super-secret-key-that-is-long-enough-for-hmac256",
-            Issuer = "test-issuer",
-            Audience = "test-audience",
-            ExpirationMinutes = 60
-        };
-        var generator = new JwtTokenGenerator(Options.Create(settings));
+        var settings = CreateSettings();
+        var signingKey = new JwtSigningKey(Options.Create(settings));
+        var generator = new JwtTokenGenerator(Options.Create(settings), signingKey);
         var user = CreateUser();
         var handler = new JwtSecurityTokenHandler();
 
@@ -119,12 +127,50 @@ public class JwtTokenGeneratorTests
             ValidateAudience = true,
             ValidAudience = settings.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.Secret)),
+            IssuerSigningKeys = new JsonWebKeySet(signingKey.JwkSetJson).GetSigningKeys(),
             ValidateLifetime = true
         };
 
         var principal = handler.ValidateToken(result.Token, validationParams, out _);
         Assert.NotNull(principal);
+    }
+
+    /// <summary>
+    /// A JWK set is served to anyone who asks. Exporting with private parameters would put `d` —
+    /// the private scalar — on a public endpoint, and hand every reader the ability to sign.
+    /// </summary>
+    [Fact]
+    public void JwkSet_ShouldCarryNoPrivateKeyMaterial()
+    {
+        var signingKey = new JwtSigningKey(Options.Create(CreateSettings()));
+
+        using var document = JsonDocument.Parse(signingKey.JwkSetJson);
+        var jwk = document.RootElement.GetProperty("keys").EnumerateArray().Single();
+
+        Assert.False(jwk.TryGetProperty("d", out _));
+        Assert.Equal("EC", jwk.GetProperty("kty").GetString());
+        Assert.Equal("ES256", jwk.GetProperty("alg").GetString());
+        Assert.False(string.IsNullOrEmpty(jwk.GetProperty("kid").GetString()));
+    }
+
+    /// <summary>Consumers cache key sets by `kid`; a restart must not invalidate them.</summary>
+    [Fact]
+    public void JwkSet_ShouldDeriveAStableKeyId_FromTheKeyItself()
+    {
+        var settings = CreateSettings();
+
+        var first = new JwtSigningKey(Options.Create(settings)).JwkSetJson;
+        var second = new JwtSigningKey(Options.Create(settings)).JwkSetJson;
+
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void SigningKey_ShouldRefuseToStart_WithoutAConfiguredKey()
+    {
+        var settings = new JwtSettings { Issuer = "test-issuer", Audience = "test-audience" };
+
+        Assert.Throws<InvalidOperationException>(() => new JwtSigningKey(Options.Create(settings)));
     }
 
     [Fact]

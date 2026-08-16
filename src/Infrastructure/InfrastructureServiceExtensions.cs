@@ -76,6 +76,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IContactMessageRepository, ContactMessageRepository>();
         services.AddScoped<IUserQuery, UserQuery>();
+        // Singleton: the key is parsed once and the ECDsa instance is reused for every signature.
+        services.AddSingleton<JwtSigningKey>();
+        services.AddSingleton<IJwksProvider>(sp => sp.GetRequiredService<JwtSigningKey>());
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IPasswordAuthenticationEngine, PasswordAuthenticationEngine>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();

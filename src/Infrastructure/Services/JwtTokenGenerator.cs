@@ -1,6 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Application.Ports;
 using Domain.Aggregates.User;
 using Microsoft.Extensions.Options;
@@ -11,17 +10,16 @@ namespace Infrastructure.Services;
 internal sealed class JwtTokenGenerator : IJwtTokenGenerator
 {
     private readonly JwtSettings _settings;
+    private readonly JwtSigningKey _signingKey;
 
-    public JwtTokenGenerator(IOptions<JwtSettings> settings)
+    public JwtTokenGenerator(IOptions<JwtSettings> settings, JwtSigningKey signingKey)
     {
         _settings = settings.Value;
+        _signingKey = signingKey;
     }
 
     public TokenResult GenerateToken(AppUser user, DateTimeOffset? overrideExpiry = null)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -40,7 +38,7 @@ internal sealed class JwtTokenGenerator : IJwtTokenGenerator
             audience: _settings.Audience,
             claims: claims,
             expires: expiresAt.UtcDateTime,
-            signingCredentials: credentials);
+            signingCredentials: _signingKey.Credentials);
 
         return new TokenResult(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }

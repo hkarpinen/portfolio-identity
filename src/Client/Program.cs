@@ -1,7 +1,7 @@
-using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Application;
+using Application.Ports;
 using Domain;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -44,9 +44,8 @@ try
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = jwtSection["Issuer"],
-                ValidAudience = jwtSection["Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtSection["Secret"]!))
+                ValidAudience = jwtSection["Audience"]
+                // Signing keys are attached below, once the key provider can be resolved.
             };
 
             options.Events = new JwtBearerEvents
@@ -58,6 +57,13 @@ try
                 }
             };
         });
+
+    // Identity verifies with the same public key it publishes, resolved in process — there is no
+    // sense in the issuer fetching its own key set over HTTP. Every other service does fetch it.
+    builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+        .Configure<IJwksProvider>((options, jwks) =>
+            options.TokenValidationParameters.IssuerSigningKeys =
+                new JsonWebKeySet(jwks.JwkSetJson).GetSigningKeys());
 
     builder.Services.AddAuthorization(options =>
     {
