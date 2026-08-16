@@ -1,3 +1,4 @@
+using MassTransit;
 using Domain.Aggregates.User;
 using Application.Repositories;
 using Infrastructure.Persistence;
@@ -10,11 +11,13 @@ internal sealed class UserRepository : IUserRepository
 {
     private readonly IdentityDbContext _dbContext;
     private readonly UserManager<AppUser> _userManager;
+    private readonly IPublishEndpoint _publishEndpoint;
 
-    public UserRepository(IdentityDbContext dbContext, UserManager<AppUser> userManager)
+    public UserRepository(IdentityDbContext dbContext, UserManager<AppUser> userManager, IPublishEndpoint publishEndpoint)
     {
         _dbContext = dbContext;
         _userManager = userManager;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<AppUser?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default)
@@ -30,7 +33,7 @@ internal sealed class UserRepository : IUserRepository
         await _userManager.UpdateAsync(user);
 
         foreach (var domainEvent in user.DomainEvents)
-            _dbContext.AddToOutbox(domainEvent);
+            await _publishEndpoint.Publish(domainEvent, domainEvent.GetType(), cancellationToken);
 
         user.ClearDomainEvents();
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -45,7 +48,7 @@ internal sealed class UserRepository : IUserRepository
         // Flush domain events raised during creation (e.g. UserRegistered) into the outbox
         // so downstream services receive them once the outbox relay polls.
         foreach (var domainEvent in user.DomainEvents)
-            _dbContext.AddToOutbox(domainEvent);
+            await _publishEndpoint.Publish(domainEvent, domainEvent.GetType(), cancellationToken);
         user.ClearDomainEvents();
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -57,8 +60,9 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task QueueConfirmationEmailAsync(AppUser user, string token, CancellationToken cancellationToken = default)
     {
-        _dbContext.AddToOutbox(new Domain.Events.UserEmailConfirmationRequested(
-            Guid.NewGuid(), DateTime.UtcNow, user.Id, user.Email!, user.DisplayName, token));
+        var @event = new Domain.Events.UserEmailConfirmationRequested(
+            Guid.NewGuid(), DateTime.UtcNow, user.Id, user.Email!, user.DisplayName, token);
+        await _publishEndpoint.Publish(@event, @event.GetType(), cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -73,8 +77,9 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task QueuePasswordResetEmailAsync(AppUser user, string token, CancellationToken cancellationToken = default)
     {
-        _dbContext.AddToOutbox(new Domain.Events.UserPasswordResetRequested(
-            Guid.NewGuid(), DateTime.UtcNow, user.Id, user.Email!, user.DisplayName, token));
+        var @event = new Domain.Events.UserPasswordResetRequested(
+            Guid.NewGuid(), DateTime.UtcNow, user.Id, user.Email!, user.DisplayName, token);
+        await _publishEndpoint.Publish(@event, @event.GetType(), cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -173,7 +178,7 @@ internal sealed class UserRepository : IUserRepository
             return (false, Describe(result));
 
         foreach (var domainEvent in user.DomainEvents)
-            _dbContext.AddToOutbox(domainEvent);
+            await _publishEndpoint.Publish(domainEvent, domainEvent.GetType(), cancellationToken);
         user.ClearDomainEvents();
         await _dbContext.SaveChangesAsync(cancellationToken);
 

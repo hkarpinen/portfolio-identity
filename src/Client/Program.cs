@@ -105,23 +105,28 @@ try
     {
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+        // Limits are configuration, not constants. The defaults below are the production posture;
+        // a parallel e2e run drives far more traffic per minute than any real user and would
+        // otherwise be rejected, which surfaces as the frontend's error boundary rather than as
+        // anything resembling a rate-limit message. Override per environment with
+        // RateLimiting__<policy>, e.g. RateLimiting__standard=2000.
         options.AddFixedWindowLimiter("standard", opt =>
         {
-            opt.PermitLimit = 100;
+            opt.PermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:standard") ?? 100;
             opt.Window = TimeSpan.FromMinutes(1);
             opt.QueueLimit = 0;
         });
 
         options.AddFixedWindowLimiter("auth", opt =>
         {
-            opt.PermitLimit = 20;
+            opt.PermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:auth") ?? 20;
             opt.Window = TimeSpan.FromMinutes(1);
             opt.QueueLimit = 0;
         });
 
         options.AddFixedWindowLimiter("write", opt =>
         {
-            opt.PermitLimit = 10;
+            opt.PermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:write") ?? 10;
             opt.Window = TimeSpan.FromMinutes(1);
             opt.QueueLimit = 0;
         });

@@ -2,7 +2,6 @@ using Application.Ports;
 using Application.Queries;
 using Application.Repositories;
 using Domain.Aggregates.User;
-using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Queries;
 using Infrastructure.Repositories;
@@ -39,6 +38,18 @@ public static class InfrastructureServiceExtensions
         var rabbitConfig = configuration.GetSection("RabbitMq");
         services.AddMassTransit(x =>
         {
+            // Replaces the hand-rolled outbox table and its polling BackgroundService. UseBusOutbox
+            // routes a Publish made inside a DbContext scope into the outbox rather than the broker,
+            // so the event commits with the aggregate and the delivery service sends it.
+            //
+            // No inbox callback here: identity publishes and consumes nothing, so there is no
+            // receive endpoint to deduplicate.
+            x.AddEntityFrameworkOutbox<IdentityDbContext>(o =>
+            {
+                o.UsePostgres();
+                o.UseBusOutbox();
+            });
+
             x.UsingRabbitMq((context, cfg) =>
             {
                 cfg.Host(rabbitConfig["Host"], h =>
@@ -71,7 +82,6 @@ public static class InfrastructureServiceExtensions
 
         services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
-        services.AddHostedService<OutboxPublisher>();
         services.AddHostedService<DemoExpiryService>();
 
         return services;
