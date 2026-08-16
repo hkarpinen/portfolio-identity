@@ -89,18 +89,6 @@ try
 
     builder.Services.AddHealthChecks();
 
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-    builder.Services.AddCors(options =>
-    {
-        options.AddDefaultPolicy(policy =>
-        {
-            policy.WithOrigins(allowedOrigins)
-                .WithHeaders("Content-Type", "Authorization")
-                .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
-                .AllowCredentials();
-        });
-    });
-
     builder.Services.AddRateLimiter(options =>
     {
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -138,7 +126,6 @@ try
     app.UseStatusCodePages();
 
     app.UseSerilogRequestLogging();
-    app.UseCors();
     app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
