@@ -8,11 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace Infrastructure.Services;
 
 /// <summary>
-/// The one signing key in the system.
-///
-/// This used to be HMAC, which meant the same secret both signed and verified — so every service
-/// held it, and any one of them could mint a token for any user with any role. Forging needed
-/// nothing but the env var. With ES256 the private half never leaves identity and everyone else
+/// The one signing key in the system. The private half never leaves identity; everyone else
 /// verifies against the public half served at the JWKS endpoint.
 /// </summary>
 internal sealed class JwtSigningKey : IJwksProvider, IDisposable

@@ -58,8 +58,7 @@ try
             };
         });
 
-    // Identity verifies with the same public key it publishes, resolved in process — there is no
-    // sense in the issuer fetching its own key set over HTTP. Every other service does fetch it.
+    // Verifies with the same key set it publishes, resolved in process rather than over HTTP.
     builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
         .Configure<IJwksProvider>((options, jwks) =>
             options.TokenValidationParameters.IssuerSigningKeys =
