@@ -35,7 +35,7 @@ dotnet run --project src/Client
 Or via the full stack:
 
 ```bash
-docker compose -f infra/compose.dev.yaml up identity
+docker compose -f infra/compose.yaml -f infra/compose.dev.yaml up identity
 ```
 
 Mailpit (dev SMTP) runs at `http://localhost:8025` — all outbound email is captured there.
