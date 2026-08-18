@@ -8,7 +8,6 @@ namespace Client.Controllers;
 
 [ApiController]
 [Route("api/identity/demo")]
-[EnableRateLimiting("standard")]
 public sealed class DemoController : ControllerBase
 {
     private readonly IDemoManager _demoManager;
@@ -20,7 +19,6 @@ public sealed class DemoController : ControllerBase
 
     [HttpPost("start")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Start([FromBody] DemoStartRequestDto request, CancellationToken cancellationToken)
     {
         var result = await _demoManager.StartDemoAsync(request.CaptchaToken, cancellationToken);

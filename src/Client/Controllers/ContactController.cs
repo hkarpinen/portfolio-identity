@@ -9,7 +9,6 @@ namespace Client.Controllers;
 [ApiController]
 [Route("api/identity/contact")]
 [AllowAnonymous]
-[EnableRateLimiting("auth")]
 public sealed class ContactController : ControllerBase
 {
     private readonly IContactManager _contactManager;

@@ -24,13 +24,12 @@ internal sealed class JwtSigningKey : IJwksProvider, IDisposable
         var configured = settings.Value.PrivateKeyPem;
         if (string.IsNullOrWhiteSpace(configured))
             throw new InvalidOperationException(
-                "Jwt:PrivateKeyPem must be configured — a base64-encoded PKCS#8 PEM. " +
+                "Jwt:PrivateKeyPem must be configured — a PKCS#8 EC P-256 private key. " +
                 "Generate one with: openssl ecparam -genkey -name prime256v1 -noout " +
                 "| openssl pkcs8 -topk8 -nocrypt | base64");
 
-        // Base64 around the PEM, because a PEM's newlines do not survive an env var intact.
         _ecdsa = ECDsa.Create();
-        _ecdsa.ImportFromPem(Encoding.UTF8.GetString(Convert.FromBase64String(configured)));
+        Import(_ecdsa, configured);
 
         Issuer = settings.Value.Issuer;
 
@@ -54,6 +53,43 @@ internal sealed class JwtSigningKey : IJwksProvider, IDisposable
                 new { kty = "EC", crv = "P-256", use = "sig", alg = "ES256", kid, x, y }
             }
         });
+    }
+
+    /// <summary>
+    /// Accepts the key however it arrives: a PEM pasted directly, the base64 of a PEM file, or the
+    /// base64 of raw PKCS#8 DER. A PEM's newlines rarely survive a round trip through an env var
+    /// or a secret store intact, so which form a deployment ends up with is not worth guessing at.
+    /// </summary>
+    private static void Import(ECDsa ecdsa, string configured)
+    {
+        var value = configured.Trim();
+
+        if (value.Contains("-----BEGIN", StringComparison.Ordinal))
+        {
+            ecdsa.ImportFromPem(value);
+            return;
+        }
+
+        byte[] decoded;
+        try
+        {
+            decoded = Convert.FromBase64String(value);
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException(
+                "Jwt:PrivateKeyPem is neither a PEM nor valid base64. Expected the output of: " +
+                "openssl ecparam -genkey -name prime256v1 -noout | openssl pkcs8 -topk8 -nocrypt | base64", ex);
+        }
+
+        var text = Encoding.UTF8.GetString(decoded);
+        if (text.Contains("-----BEGIN", StringComparison.Ordinal))
+        {
+            ecdsa.ImportFromPem(text);
+            return;
+        }
+
+        ecdsa.ImportPkcs8PrivateKey(decoded, out _);
     }
 
     public void Dispose() => _ecdsa.Dispose();

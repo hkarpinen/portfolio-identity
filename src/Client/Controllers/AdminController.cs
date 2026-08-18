@@ -11,7 +11,6 @@ namespace Client.Controllers;
 [ApiController]
 [Route("api/identity/admin")]
 [Authorize(Policy = "AdminOnly")]
-[EnableRateLimiting("standard")]
 public sealed class AdminController : ControllerBase
 {
     private readonly IAdminManager _adminManager;
@@ -31,7 +30,6 @@ public sealed class AdminController : ControllerBase
     }
 
     [HttpPost("users/{id:guid}/ban")]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> BanUser([FromRoute] Guid id, [FromBody] BanUserDto? body = null)
     {
         var result = await _adminManager.BanAsync(id, body?.Reason);
@@ -41,7 +39,6 @@ public sealed class AdminController : ControllerBase
     }
 
     [HttpPost("users/{id:guid}/unban")]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> UnbanUser([FromRoute] Guid id)
     {
         var result = await _adminManager.UnbanAsync(id);
@@ -51,7 +48,6 @@ public sealed class AdminController : ControllerBase
     }
 
     [HttpPost("users/{id:guid}/role")]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> ChangeRole([FromRoute] Guid id, [FromBody] ChangeRoleDto body)
     {
         var result = await _adminManager.ChangeRoleAsync(id, body.Role);

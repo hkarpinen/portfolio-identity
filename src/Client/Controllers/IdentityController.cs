@@ -13,7 +13,6 @@ namespace Client.Controllers;
 
 [ApiController]
 [Route("api/identity")]
-[EnableRateLimiting("standard")]
 public sealed class IdentityController : ControllerBase
 {
     private readonly IAuthManager _authManager;
@@ -38,7 +37,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("register")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
         var result = await _authManager.RegisterAsync(command);
@@ -49,7 +47,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login(LoginCommand command)
     {
         var result = await _authManager.LoginAsync(command);
@@ -72,7 +69,6 @@ public sealed class IdentityController : ControllerBase
     /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh(CancellationToken ct)
     {
         var presented = Request.Cookies[RefreshCookie];
@@ -102,7 +98,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordCommand command)
     {
         await _authManager.ForgotPasswordAsync(command);
@@ -111,7 +106,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ResetPassword(ResetPasswordCommand command)
     {
         var result = await _authManager.ResetPasswordAsync(command);
@@ -122,7 +116,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("resend-confirmation")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ResendConfirmationEmail(ResendConfirmationEmailCommand command)
     {
         await _authManager.ResendConfirmationEmailAsync(command);
@@ -152,7 +145,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("2fa/verify")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> VerifyTwoFactor(VerifyTwoFactorCommand command)
     {
         var result = await _twoFactorManager.VerifyTwoFactorAsync(command);
@@ -167,7 +159,6 @@ public sealed class IdentityController : ControllerBase
     /// <summary>Runs INSIDE a session, unlike the anonymous sign-in challenge.</summary>
     [HttpPost("2fa/confirm")]
     [Authorize]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ConfirmTwoFactor([FromBody] ConfirmTwoFactorCommand command)
     {
         var userId = User.GetUserId();
@@ -179,7 +170,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("2fa/disable")]
     [Authorize]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> DisableTwoFactor([FromBody] DisableTwoFactorCommand command)
     {
         var userId = User.GetUserId();
@@ -204,7 +194,6 @@ public sealed class IdentityController : ControllerBase
     /// <summary>Invalidates every previous code, and returns the new set only once.</summary>
     [HttpPost("2fa/recovery-codes/regenerate")]
     [Authorize]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> RegenerateRecoveryCodes()
     {
         var userId = User.GetUserId();
@@ -259,7 +248,6 @@ public sealed class IdentityController : ControllerBase
     /// someone who cannot sign in, and is not a substitute.</summary>
     [HttpPut("password")]
     [Authorize]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
     {
         var userId = User.GetUserId();
@@ -271,7 +259,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPut("email")]
     [Authorize]
-    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailCommand command)
     {
         var userId = User.GetUserId();
@@ -283,7 +270,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpDelete("me")]
     [Authorize]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountCommand command)
     {
         var userId = User.GetUserId();
@@ -308,7 +294,6 @@ public sealed class IdentityController : ControllerBase
 
     [HttpDelete("connections/{provider}")]
     [Authorize]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> DisconnectOAuth([FromRoute] string provider)
     {
         var userId = User.GetUserId();
@@ -325,13 +310,11 @@ public sealed class IdentityController : ControllerBase
 
     [HttpPost("sessions/{sessionId:guid}/revoke")]
     [Authorize]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> RevokeSession([FromRoute] Guid sessionId, CancellationToken ct)
         => await _sessions.RevokeAsync(User.GetUserId(), sessionId, ct) ? NoContent() : NotFound();
 
     [HttpPost("sessions/revoke-others")]
     [Authorize]
-    [EnableRateLimiting("write")]
     public async Task<IActionResult> RevokeOtherSessions(CancellationToken ct)
     {
         await _sessions.RevokeOthersAsync(User.GetUserId(), Request.Cookies[RefreshCookie], ct);
